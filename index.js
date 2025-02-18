@@ -1,5 +1,4 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
-const qrcode = require('qrcode-terminal'); // Adicionado para exibir o QR code
 const axios = require('axios');
 const express = require('express');
 const os = require('os');
@@ -45,7 +44,8 @@ async function iniciarBot() {
   sock.ev.on('connection.update', (update) => {
     const { connection, qr } = update;
     if (qr) {
-      qrcode.generate(qr, { small: true }); // Exibe o QR code no terminal
+      console.log('Escaneie o QR code abaixo para autenticar o bot:');
+      console.log(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`);
     }
     if (connection === 'open') {
       console.log('Bot conectado ao WhatsApp!');

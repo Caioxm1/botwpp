@@ -8,7 +8,7 @@ const WebSocket = require('ws'); // Adicionado para WebSocket
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwol5O79HdBNmRqV73cpCsmmlQC84mhwFgpNd7lpop_4EKfwpcOI7kdQDGl_dMjBM8KTQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyDDmm3Orvozg6-nDDyQAC-ZMnYgkKc718w0eWhmVjaMcs-74yoE7a0wnPncU6cFQ_i8w/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 // Criar um servidor WebSocket

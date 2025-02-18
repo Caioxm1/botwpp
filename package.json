@@ -1,5 +1,5 @@
 {
-  "name": "whatsapp-bot",
+  "name": "botwpp",
   "version": "1.0.0",
   "description": "Bot do WhatsApp para controle financeiro",
   "main": "index.js",

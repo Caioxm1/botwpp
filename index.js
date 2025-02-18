@@ -46,15 +46,18 @@ async function iniciarBot() {
     // Listener para atualização de credenciais
     sock.ev.on('creds.update', saveCreds);
 
-    // Listener para eventos de conexão (envia o QR code via WebSocket)
+    // Listener para eventos de conexão (envia o QR code via WebSocket e exibe o link no log)
     sock.ev.on('connection.update', (update) => {
       const { connection, qr } = update;
       if (qr) {
-        console.log('Novo QR code gerado.');
+        const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
+        console.log('Escaneie o QR code abaixo para autenticar o bot:');
+        console.log(qrLink); // Exibe o link do QR code no log
+
         // Envia o QR code para todos os clientes WebSocket conectados
         wss.clients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ qr: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}` }));
+            client.send(JSON.stringify({ qr: qrLink }));
           }
         });
       }

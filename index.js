@@ -40,7 +40,7 @@ async function iniciarBot() {
   // Listener para atualização de credenciais
   sock.ev.on('creds.update', saveCreds);
 
-  // Listener para eventos de conexão (exibe o QR code quando necessário)
+  // Listener para eventos de conexão (exibe o QR code como link)
   sock.ev.on('connection.update', (update) => {
     const { connection, qr } = update;
     if (qr) {

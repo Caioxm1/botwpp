@@ -14,6 +14,15 @@ const GRUPO_ID = '120363403512588677@g.us';
 // Criar um servidor WebSocket
 const wss = new WebSocket.Server({ port: 8080 });
 
+// Função para formatar a data no formato DD/MM/AAAA
+function formatarData(data) {
+  const date = new Date(data);
+  const dia = String(date.getDate()).padStart(2, '0');
+  const mes = String(date.getMonth() + 1).padStart(2, '0'); // Mês começa em 0
+  const ano = date.getFullYear();
+  return `${dia}/${mes}/${ano}`;
+}
+
 // Função para obter a URL do WebView e os dados do Replit
 function getReplitData() {
   return new Promise((resolve) => {
@@ -98,9 +107,43 @@ async function iniciarBot() {
       if (texto === "meta") {
         try {
           const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
-          await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+          const metaData = resposta.data;
+          const metaFormatada = `🎯 *Meta*:\n📅 Período: ${formatarData(metaData.dataInicio)} até ${formatarData(metaData.dataFim)}\n💰 Valor: R$${metaData.valor.toFixed(2)}`;
+          await sock.sendMessage(GRUPO_ID, { text: metaFormatada });
         } catch (error) {
           await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });
+        }
+        return;
+      }
+
+      // Comando para registrar entrada
+      if (texto.startsWith("entrada")) {
+        const valor = parseFloat(texto.replace("entrada", "").trim());
+        if (!isNaN(valor)) {
+          try {
+            await axios.post(WEB_APP_URL, { tipo: "Entrada", valor, remetente });
+            await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada de R$${valor.toFixed(2)} registrada por ${remetente}.` });
+          } catch (error) {
+            await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao registrar a entrada." });
+          }
+        } else {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: entrada <valor>" });
+        }
+        return;
+      }
+
+      // Comando para registrar saída
+      if (texto.startsWith("saída") || texto.startsWith("saida")) {
+        const valor = parseFloat(texto.replace(/sa[ií]da/, "").trim());
+        if (!isNaN(valor)) {
+          try {
+            await axios.post(WEB_APP_URL, { tipo: "Saída", valor, remetente });
+            await sock.sendMessage(GRUPO_ID, { text: `✅ Saída de R$${valor.toFixed(2)} registrada por ${remetente}.` });
+          } catch (error) {
+            await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao registrar a saída." });
+          }
+        } else {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: saída <valor>" });
         }
         return;
       }

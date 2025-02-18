@@ -124,6 +124,7 @@ async function iniciarBot() {
             await axios.post(WEB_APP_URL, { tipo: "Entrada", valor, remetente });
             await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada de R$${valor.toFixed(2)} registrada por ${remetente}.` });
           } catch (error) {
+            console.error("Erro ao registrar entrada:", error);
             await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao registrar a entrada." });
           }
         } else {
@@ -140,6 +141,7 @@ async function iniciarBot() {
             await axios.post(WEB_APP_URL, { tipo: "Saída", valor, remetente });
             await sock.sendMessage(GRUPO_ID, { text: `✅ Saída de R$${valor.toFixed(2)} registrada por ${remetente}.` });
           } catch (error) {
+            console.error("Erro ao registrar saída:", error);
             await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao registrar a saída." });
           }
         } else {

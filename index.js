@@ -9,7 +9,7 @@ const cron = require('node-cron'); // Adicionado para agendamento de tarefas
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwol5O79HdBNmRqV73cpCsmmlQC84mhwFgpNd7lpop_4EKfwpcOI7kdQDGl_dMjBM8KTQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbygMHT4Q_y3v_sI7MU7Vc0wP4RObTxhNWONE5HC4FHVJCsSKKHk1kPmzGatQMJUBZLIvw/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 // Criar um servidor WebSocket

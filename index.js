@@ -1,4 +1,5 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const qrcode = require('qrcode-terminal'); // Adicionado para exibir o QR code
 const axios = require('axios');
 const express = require('express');
 const os = require('os');
@@ -36,8 +37,22 @@ function getReplitData() {
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({ auth: state });
+
+  // Listener para atualização de credenciais
   sock.ev.on('creds.update', saveCreds);
 
+  // Listener para eventos de conexão (exibe o QR code quando necessário)
+  sock.ev.on('connection.update', (update) => {
+    const { connection, qr } = update;
+    if (qr) {
+      qrcode.generate(qr, { small: true }); // Exibe o QR code no terminal
+    }
+    if (connection === 'open') {
+      console.log('Bot conectado ao WhatsApp!');
+    }
+  });
+
+  // Listener para mensagens recebidas
   sock.ev.on('messages.upsert', async (m) => {
     const msg = m.messages[0];
     if (!msg.message || msg.key.remoteJid !== GRUPO_ID) return;
@@ -45,6 +60,7 @@ async function iniciarBot() {
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || msg.key.participant;
 
+    // Comando para obter resumo financeiro
     if (texto === "resumo") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
@@ -55,6 +71,7 @@ async function iniciarBot() {
       return;
     }
 
+    // Comando para verificar meta
     if (texto === "meta") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
@@ -105,6 +122,7 @@ app.get('/', async (req, res) => {
   });
 });
 
+// Iniciar o servidor Express
 app.listen(3000, '0.0.0.0', async () => {
   const { webViewUrl, replitDevUrl } = await getReplitData();
   console.log(`Servidor rodando na porta 3000`);
@@ -112,4 +130,5 @@ app.listen(3000, '0.0.0.0', async () => {
   console.log(`🔗 Replit Dev URL: ${replitDevUrl}`);
 });
 
+// Iniciar o bot do WhatsApp
 iniciarBot();

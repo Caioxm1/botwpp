@@ -3,12 +3,16 @@ const axios = require('axios');
 const express = require('express');
 const os = require('os');
 const { exec } = require('child_process');
+const WebSocket = require('ws'); // Adicionado para WebSocket
 
 const app = express();
 app.use(express.json());
 
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwol5O79HdBNmRqV73cpCsmmlQC84mhwFgpNd7lpop_4EKfwpcOI7kdQDGl_dMjBM8KTQ/exec';
 const GRUPO_ID = '120363403512588677@g.us';
+
+// Criar um servidor WebSocket
+const wss = new WebSocket.Server({ port: 8080 });
 
 // Função para obter a URL do WebView e os dados do Replit
 function getReplitData() {
@@ -35,55 +39,74 @@ function getReplitData() {
 
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const sock = makeWASocket({ auth: state });
 
-  // Listener para atualização de credenciais
-  sock.ev.on('creds.update', saveCreds);
+  const startSocket = () => {
+    const sock = makeWASocket({ auth: state });
 
-  // Listener para eventos de conexão (exibe o QR code como link)
-  sock.ev.on('connection.update', (update) => {
-    const { connection, qr } = update;
-    if (qr) {
-      console.log('Escaneie o QR code abaixo para autenticar o bot:');
-      console.log(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`);
-    }
-    if (connection === 'open') {
-      console.log('Bot conectado ao WhatsApp!');
-    }
-  });
+    // Listener para atualização de credenciais
+    sock.ev.on('creds.update', saveCreds);
 
-  // Listener para mensagens recebidas
-  sock.ev.on('messages.upsert', async (m) => {
-    const msg = m.messages[0];
-    if (!msg.message || msg.key.remoteJid !== GRUPO_ID) return;
-
-    const texto = msg.message.conversation?.toLowerCase().trim();
-    const remetente = msg.pushName || msg.key.participant;
-
-    // Comando para obter resumo financeiro
-    if (texto === "resumo") {
-      try {
-        const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
-        await sock.sendMessage(GRUPO_ID, { text: `📊 *Resumo Financeiro* 📊\n\n${resposta.data}` });
-      } catch (error) {
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter resumo financeiro." });
+    // Listener para eventos de conexão (envia o QR code via WebSocket)
+    sock.ev.on('connection.update', (update) => {
+      const { connection, qr } = update;
+      if (qr) {
+        console.log('Novo QR code gerado.');
+        // Envia o QR code para todos os clientes WebSocket conectados
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ qr: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}` }));
+          }
+        });
       }
-      return;
-    }
-
-    // Comando para verificar meta
-    if (texto === "meta") {
-      try {
-        const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
-        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
-      } catch (error) {
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });
+      if (connection === 'open') {
+        console.log('Bot conectado ao WhatsApp!');
       }
-      return;
-    }
-  });
+    });
 
-  console.log("Bot iniciado!");
+    // Listener para erros de conexão
+    sock.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect } = update;
+      if (connection === 'close') {
+        console.log('Conexão fechada. Tentando reconectar...');
+        setTimeout(startSocket, 5000); // Reconecta após 5 segundos
+      }
+    });
+
+    // Listener para mensagens recebidas
+    sock.ev.on('messages.upsert', async (m) => {
+      const msg = m.messages[0];
+      if (!msg.message || msg.key.remoteJid !== GRUPO_ID) return;
+
+      const texto = msg.message.conversation?.toLowerCase().trim();
+      const remetente = msg.pushName || msg.key.participant;
+
+      // Comando para obter resumo financeiro
+      if (texto === "resumo") {
+        try {
+          const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
+          await sock.sendMessage(GRUPO_ID, { text: `📊 *Resumo Financeiro* 📊\n\n${resposta.data}` });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter resumo financeiro." });
+        }
+        return;
+      }
+
+      // Comando para verificar meta
+      if (texto === "meta") {
+        try {
+          const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
+          await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });
+        }
+        return;
+      }
+    });
+
+    console.log("Bot iniciado!");
+  };
+
+  startSocket(); // Inicia a conexão
 }
 
 // Endpoint para exibir IP, URLs do Replit e variáveis únicas
@@ -118,6 +141,15 @@ app.get('/', async (req, res) => {
       <p><strong>🆔 Unique Token (REPL_ID):</strong> ${replId}</p>
       <p><strong>🔄 Cluster Name (REPLIT_CLUSTER):</strong> ${replCluster}</p>
       <p><strong>🔗 Replit Dev URL:</strong> <a href="${replitDevUrl}" target="_blank">${replitDevUrl}</a></p>
+      <h3>QR Code para Autenticação</h3>
+      <div id="qrcode"></div>
+      <script>
+        const ws = new WebSocket('ws://localhost:8080');
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          document.getElementById('qrcode').innerHTML = \`<img src="\${data.qr}" alt="QR Code" />\`;
+        };
+      </script>
     `);
   });
 });

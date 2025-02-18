@@ -1,0 +1,21 @@
+{
+  "name": "botwpp",
+  "version": "1.0.0",
+  "description": "Bot do WhatsApp para controle financeiro",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^18.0.6",
+    "@whiskeysockets/baileys": "^6.7.13",
+    "axios": "^1.7.9",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

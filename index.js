@@ -9,7 +9,7 @@ const cron = require('node-cron'); // Adicionado para agendamento de tarefas
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbygMHT4Q_y3v_sI7MU7Vc0wP4RObTxhNWONE5HC4FHVJCsSKKHk1kPmzGatQMJUBZLIvw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwol5O79HdBNmRqV73cpCsmmlQC84mhwFgpNd7lpop_4EKfwpcOI7kdQDGl_dMjBM8KTQ/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 // Criar um servidor WebSocket
@@ -55,9 +55,17 @@ cron.schedule('59 23 * * 0', async () => {
   await enviarMensagemAutomatica(`📊 *Resumo Semanal* 📊\n\n${resumo}`);
 });
 
-cron.schedule('59 23 L * *', async () => {
-  const resumo = await obterResumo();
-  await enviarMensagemAutomatica(`📊 *Resumo Mensal* 📊\n\n${resumo}`);
+// Resumo Mensal (último dia do mês às 23:59)
+cron.schedule('59 23 28-31 * *', async () => {
+  const hoje = new Date();
+  const amanha = new Date(hoje);
+  amanha.setDate(amanha.getDate() + 1);
+
+  // Verifica se hoje é o último dia do mês
+  if (amanha.getMonth() !== hoje.getMonth()) {
+    const resumo = await obterResumo();
+    await enviarMensagemAutomatica(`📊 *Resumo Mensal* 📊\n\n${resumo}`);
+  }
 });
 
 // Iniciar o bot do WhatsApp

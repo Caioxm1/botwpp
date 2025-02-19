@@ -7,13 +7,11 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzgd8XmgMXU_dMFbpeCwkOxURuTFhn6hcto-3sSHX6d/dev';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx_YfVJ-gNQ9Zy6qnRr0vgyiHYqftayUnL8vkF9Lsje0b9DheENR4q0qVMKs1ek1-HWbA/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
-// Servidor WebSocket
 const wss = new WebSocket.Server({ port: 8080 });
 
-// Função para formatar a data no formato DD/MM/AAAA
 function formatarData(data) {
   const date = new Date(data);
   const dia = String(date.getDate()).padStart(2, '0');
@@ -22,7 +20,6 @@ function formatarData(data) {
   return `${dia}/${mes}/${ano}`;
 }
 
-// Função para obter o resumo financeiro
 async function obterResumo() {
   try {
     const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
@@ -33,19 +30,16 @@ async function obterResumo() {
   }
 }
 
-// Função para obter informações da meta
 async function obterMeta() {
   try {
     const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
-    const metaData = JSON.parse(resposta.data); // Parseia a resposta JSON
-    return metaData;
+    return JSON.parse(resposta.data);
   } catch (error) {
     console.error("Erro ao obter informações da meta:", error);
     return null;
   }
 }
 
-// Função para enviar mensagens automáticas
 async function enviarMensagemAutomatica(mensagem) {
   try {
     await sock.sendMessage(GRUPO_ID, { text: mensagem });
@@ -54,7 +48,6 @@ async function enviarMensagemAutomatica(mensagem) {
   }
 }
 
-// Agendamento de tarefas
 cron.schedule('59 23 * * *', async () => {
   const resumo = await obterResumo();
   await enviarMensagemAutomatica(`📊 *Resumo Diário* 📊\n\n${resumo}`);
@@ -65,7 +58,6 @@ cron.schedule('59 23 * * 0', async () => {
   await enviarMensagemAutomatica(`📊 *Resumo Semanal* 📊\n\n${resumo}`);
 });
 
-// Resumo Mensal (último dia do mês às 23:59)
 cron.schedule('59 23 28-31 * *', async () => {
   const hoje = new Date();
   const amanha = new Date(hoje);
@@ -77,7 +69,6 @@ cron.schedule('59 23 28-31 * *', async () => {
   }
 });
 
-// Iniciar o bot do WhatsApp
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({ auth: state });
@@ -189,7 +180,6 @@ async function iniciarBot() {
   console.log("Bot iniciado!");
 }
 
-// Iniciar o servidor Express
 app.listen(3000, '0.0.0.0', async () => {
   console.log(`Servidor rodando na porta 3000`);
   iniciarBot();

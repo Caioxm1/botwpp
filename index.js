@@ -1,17 +1,49 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
+const WebSocket = require('ws');
 
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzgd8XmgMXU_dMFbpeCwkOxURuTFhn6hcto-3sSHX6d/dev';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzX7YZkQweyLeyhiE3A7MuPJjQPrKY41OyfnfANl2Twy26ShoacDavSY3pN0-lbJHdbuQ/exec';
 const GRUPO_ID = '120363403512588677@g.us';
+
+// Servidor WebSocket para enviar o QR code
+const wss = new WebSocket.Server({ port: 8080 });
 
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({ auth: state });
+
   sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, qr } = update;
+    if (qr) {
+      const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
+      console.log('Escaneie o QR code abaixo para autenticar o bot:');
+      console.log(qrLink);
+
+      // Envia o QR code para todos os clientes WebSocket conectados
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ qr: qrLink }));
+        }
+      });
+    }
+    if (connection === 'open') {
+      console.log('Bot conectado ao WhatsApp!');
+    }
+  });
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
+    if (connection === 'close') {
+      console.log('Conexão fechada. Tentando reconectar...');
+      setTimeout(iniciarBot, 10000); // Reconecta após 10 segundos
+    }
+  });
 
   sock.ev.on('messages.upsert', async (m) => {
     const msg = m.messages[0];
@@ -103,5 +135,7 @@ app.post('/meta-atingida', async (req, res) => {
 });
 
 // Iniciar o servidor Express e o bot
-app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
-iniciarBot();
+app.listen(3000, () => {
+  console.log("Servidor rodando na porta 3000");
+  iniciarBot();
+});

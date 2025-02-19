@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
 const WebSocket = require('ws');
@@ -29,14 +29,33 @@ async function iniciarBot() {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
-    const { connection, qr } = update;
+    const { connection, lastDisconnect, qr } = update;
+
     if (qr) {
       const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
       console.log('Escaneie o QR code abaixo para autenticar o bot:');
       console.log(qrLink);
     }
+
     if (connection === 'open') {
       console.log('✅ Bot conectado ao WhatsApp!');
+    }
+
+    if (connection === 'close') {
+      const motivo = lastDisconnect?.error?.output?.statusCode;
+      console.log(`⚠️ Conexão fechada. Motivo: ${motivo || "Desconhecido"}`);
+
+      // Se o motivo for um erro crítico (ex: conta banida), não tenta reconectar
+      if (motivo === 401) {
+        console.log("❌ Conta do WhatsApp banida! Reconexão cancelada.");
+        return;
+      }
+
+      // Se for erro de stream (código 515), tenta reconectar automaticamente
+      if (motivo === 515 || lastDisconnect?.reason === DisconnectReason.badSession) {
+        console.log("🔄 Tentando reconectar em 5 segundos...");
+        setTimeout(iniciarBot, 5000);
+      }
     }
   });
 

@@ -7,14 +7,14 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2CCn-YOFf8fRrCo2HnMkMOh5bRkuPXkXeXCmcAfIdBFZFeQuP6V4sBQKdUETunBVmnw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzLdyZnqjXg2nLGH26ygl7-0YP2tqXuW01eDH_jJ0iw3VMNOVYQPrLG0_7hpHVy_ygOZg/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
 
 async function obterMeta() {
   try {
-    const resposta = await axios.get(`${WEB_APP_URL}?action=meta`, { family: 4 });
+    const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
     return resposta.data;
   } catch (error) {
     console.error("Erro ao obter informações da meta:", error.message);
@@ -34,12 +34,6 @@ async function iniciarBot() {
       const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
       console.log('Escaneie o QR code abaixo para autenticar o bot:');
       console.log(qrLink);
-
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ qr: qrLink }));
-        }
-      });
     }
     if (connection === 'open') {
       console.log('✅ Bot conectado ao WhatsApp!');

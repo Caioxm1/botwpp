@@ -9,7 +9,7 @@ const cron = require('node-cron'); // Adicionado para agendamento de tarefas
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbygMHT4Q_y3v_sI7MU7Vc0wP4RObTxhNWONE5HC4FHVJCsSKKHk1kPmzGatQMJUBZLIvw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxc_ITEk895ruIXbp7YBDu71_x7T-BDXD2ZeJG7eWnkV6GXGvpzDNQoCTr5Xf1SjKFmqA/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 // Criar um servidor WebSocket
@@ -32,6 +32,17 @@ async function obterResumo() {
   } catch (error) {
     console.error("Erro ao obter resumo:", error);
     return "⚠️ Erro ao obter resumo financeiro.";
+  }
+}
+
+// Função para obter informações da meta
+async function obterMeta() {
+  try {
+    const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
+    return resposta.data;
+  } catch (error) {
+    console.error("Erro ao obter informações da meta:", error);
+    return null;
   }
 }
 
@@ -127,10 +138,13 @@ async function iniciarBot() {
     // Comando para verificar meta
     if (texto === "meta") {
       try {
-        const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
-        const metaData = resposta.data;
-        const metaFormatada = `🎯 *Meta*:\n📅 Período: ${formatarData(metaData.dataInicio)} até ${formatarData(metaData.dataFim)}\n💰 Valor: R$${metaData.valor.toFixed(2)}`;
-        await sock.sendMessage(GRUPO_ID, { text: metaFormatada });
+        const metaData = await obterMeta();
+        if (metaData) {
+          const metaFormatada = `🎯 *Meta*:\n📅 Período: ${formatarData(metaData.dataInicio)} até ${formatarData(metaData.dataFim)}\n💰 Valor: R$${metaData.valor.toFixed(2)}`;
+          await sock.sendMessage(GRUPO_ID, { text: metaFormatada });
+        } else {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });
+        }
       } catch (error) {
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });
       }

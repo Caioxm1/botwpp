@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx7ZxPs_XExQtFRl97ngz_mjhaaWR3v2nN2wlyCxSGkY-xx5HAA0KJja5C5KXPfbu6MZQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzgd8XmgMXU_dMFbpeCwkOxURuTFhn6hcto-3sSHX6d/dev';
 const GRUPO_ID = '120363403512588677@g.us';
 
 // Servidor WebSocket
@@ -37,7 +37,8 @@ async function obterResumo() {
 async function obterMeta() {
   try {
     const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
-    return JSON.parse(resposta.data); // Parseia a resposta JSON
+    const metaData = JSON.parse(resposta.data); // Parseia a resposta JSON
+    return metaData;
   } catch (error) {
     console.error("Erro ao obter informações da meta:", error);
     return null;

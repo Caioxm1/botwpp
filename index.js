@@ -24,7 +24,10 @@ async function obterMeta() {
 
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const sock = makeWASocket({ auth: state });
+  const sock = makeWASocket({ 
+    auth: state,
+    syncFullHistory: false // ⚠️ Desativa a sincronização completa do histórico para evitar erro
+  });
 
   sock.ev.on('creds.update', saveCreds);
 
@@ -45,17 +48,13 @@ async function iniciarBot() {
       const motivo = lastDisconnect?.error?.output?.statusCode;
       console.log(`⚠️ Conexão fechada. Motivo: ${motivo || "Desconhecido"}`);
 
-      // Se o motivo for um erro crítico (ex: conta banida), não tenta reconectar
       if (motivo === 401) {
         console.log("❌ Conta do WhatsApp banida! Reconexão cancelada.");
         return;
       }
 
-      // Se for erro de stream (código 515), tenta reconectar automaticamente
-      if (motivo === 515 || lastDisconnect?.reason === DisconnectReason.badSession) {
-        console.log("🔄 Tentando reconectar em 5 segundos...");
-        setTimeout(iniciarBot, 5000);
-      }
+      console.log("🔄 Tentando reconectar em 5 segundos...");
+      setTimeout(iniciarBot, 5000);
     }
   });
 

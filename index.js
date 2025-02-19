@@ -1,15 +1,13 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
-const os = require('os');
-const { exec } = require('child_process');
 const WebSocket = require('ws');
 const cron = require('node-cron');
 
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2CCn-YOFf8fRrCo2HnMkMOh5bRkuPXkXeXCmcAfIdBFZFeQuP6V4sBQKdUETunBVmnw/exec'; // Atualize com a URL correta
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2CCn-YOFf8fRrCo2HnMkMOh5bRkuPXkXeXCmcAfIdBFZFeQuP6V4sBQKdUETunBVmnw/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -24,19 +22,6 @@ async function obterMeta() {
   }
 }
 
-async function enviarMensagemAutomatica(mensagem) {
-  try {
-    await sock.sendMessage(GRUPO_ID, { text: mensagem });
-  } catch (error) {
-    console.error("Erro ao enviar mensagem automática:", error);
-  }
-}
-
-cron.schedule('59 23 * * *', async () => {
-  const resumo = await obterResumo();
-  await enviarMensagemAutomatica(`📊 *Resumo Diário* 📊\n\n${resumo}`);
-});
-
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({ auth: state });
@@ -46,10 +31,18 @@ async function iniciarBot() {
   sock.ev.on('connection.update', (update) => {
     const { connection, qr } = update;
     if (qr) {
-      console.log('Escaneie o QR code para autenticar o bot:', qr);
+      const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
+      console.log('Escaneie o QR code abaixo para autenticar o bot:');
+      console.log(qrLink);
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ qr: qrLink }));
+        }
+      });
     }
     if (connection === 'open') {
-      console.log('Bot conectado ao WhatsApp!');
+      console.log('✅ Bot conectado ao WhatsApp!');
     }
   });
 
@@ -76,6 +69,6 @@ async function iniciarBot() {
 }
 
 app.listen(3000, '0.0.0.0', async () => {
-  console.log(`Servidor rodando na porta 3000`);
+  console.log(`🚀 Servidor rodando na porta 3000`);
   iniciarBot();
 });

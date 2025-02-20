@@ -1,8 +1,7 @@
-const { default: makeWASocket, useMultiFileAuthState, makeInMemoryStore, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
-const qrcode = require('qrcode-terminal');
-const fs = require('fs');
+const WebSocket = require('ws');
 
 // Configuração do servidor para receber notificações do Google Apps Script
 const app = express();
@@ -12,17 +11,31 @@ app.use(express.json());
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxMbawtEiSnfDJ7qnttHPzCPBxWoZJBJzywCByaui_hGNi_DiHeU6lvOWz0L4uJcIhd/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
+// Servidor WebSocket para enviar o QR code
+const wss = new WebSocket.Server({ port: 8080 });
+
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({ auth: state });
   sock.ev.on('creds.update', saveCreds);
 
-  // Exibir QR Code como link
-  sock.ev.on('connection.update', async (update) => {
-    const { qr } = update;
+  // Listener para eventos de conexão (envia o QR code via WebSocket e exibe o link no log)
+  sock.ev.on('connection.update', (update) => {
+    const { connection, qr } = update;
     if (qr) {
-      qrcode.generate(qr, { small: true }); // Exibir QR Code no terminal
-      console.log(`Escaneie o QR Code pelo link: https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
+      const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
+      console.log('Escaneie o QR code abaixo para autenticar o bot:');
+      console.log(qrLink);
+
+      // Envia o QR code para todos os clientes WebSocket conectados
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ qr: qrLink }));
+        }
+      });
+    }
+    if (connection === 'open') {
+      console.log('Bot conectado ao WhatsApp!');
     }
   });
 
@@ -33,6 +46,7 @@ async function iniciarBot() {
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || msg.key.participant;
 
+    // Comando para obter resumo financeiro
     if (texto === "resumo") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
@@ -43,6 +57,7 @@ async function iniciarBot() {
       return;
     }
 
+    // Comando para verificar meta
     if (texto === "meta") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
@@ -53,6 +68,7 @@ async function iniciarBot() {
       return;
     }
 
+    // Comando para definir meta
     if (texto.startsWith("meta definir")) {
       try {
         const parametros = texto.replace("meta definir", "").trim().split(" ");
@@ -73,6 +89,7 @@ async function iniciarBot() {
       return;
     }
 
+    // Captura entradas e saídas de dinheiro
     let tipo = "";
     let valor = 0;
     if (texto.startsWith("entrada")) {
@@ -96,6 +113,7 @@ async function iniciarBot() {
   console.log("Bot iniciado!");
 }
 
+// Endpoint para receber notificação da meta atingida
 app.post('/meta-atingida', async (req, res) => {
   const mensagem = req.body.mensagem;
   if (!mensagem) {
@@ -110,5 +128,6 @@ app.post('/meta-atingida', async (req, res) => {
   }
 });
 
+// Iniciar o servidor Express e o bot
 app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
 iniciarBot();

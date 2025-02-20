@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzX7YZkQweyLeyhiE3A7MuPJjQPrKY41OyfnfANl2Twy26ShoacDavSY3pN0-lbJHdbuQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyeGpKLC9iDiqXugresc-wTTb5UW6WCKTO5nBEE2BaMPOvJqDMiNVqhVlXzgC2Qr4cYNw/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 // Servidor WebSocket para enviar o QR code
@@ -58,6 +58,7 @@ async function iniciarBot() {
         const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
         await sock.sendMessage(GRUPO_ID, { text: resposta.data }); // Resposta é tratada como texto
       } catch (error) {
+        console.error("Erro ao obter resumo:", error);
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter resumo financeiro." });
       }
       return;
@@ -69,29 +70,21 @@ async function iniciarBot() {
         const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
         await sock.sendMessage(GRUPO_ID, { text: resposta.data }); // Resposta é tratada como texto
       } catch (error) {
+        console.error("Erro ao obter informações da meta:", error);
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });
       }
       return;
     }
 
-    // Comando para definir meta
-    if (texto.startsWith("meta definir")) {
-      try {
-        const parametros = texto.replace("meta definir", "").trim().split(" ");
-        const valor = parseFloat(parametros[0]);
-        const dataInicio = parametros[1];
-        const dataFim = parametros[2];
-
-        if (isNaN(valor) || !dataInicio || !dataFim) {
-          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: meta definir <valor> <data início> <data fim>" });
-          return;
-        }
-
-        await axios.post(WEB_APP_URL, { action: "definirMeta", valor, dataInicio, dataFim });
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Meta de R$${valor} definida de ${dataInicio} até ${dataFim}.` });
-      } catch (error) {
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao definir a meta." });
-      }
+    // Comando para ajuda
+    if (texto === "ajuda") {
+      const mensagemAjuda = `📋 *Comandos Disponíveis* 📋\n\n` +
+        `🔹 *resumo*: Exibe o resumo financeiro.\n` +
+        `🔹 *meta*: Exibe informações sobre a meta atual.\n` +
+        `🔹 *entrada <valor>*: Registra uma entrada de dinheiro.\n` +
+        `🔹 *saída <valor>*: Registra uma saída de dinheiro.\n` +
+        `🔹 *ajuda*: Exibe esta mensagem de ajuda.`;
+      await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       return;
     }
 
@@ -111,6 +104,7 @@ async function iniciarBot() {
         await axios.post(WEB_APP_URL, { tipo, valor, remetente });
         await sock.sendMessage(GRUPO_ID, { text: `✅ ${tipo} de R$${valor} registrada por ${remetente}.` });
       } catch (error) {
+        console.error("Erro ao registrar transação:", error);
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao registrar a transação." });
       }
     }

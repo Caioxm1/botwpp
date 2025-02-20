@@ -47,8 +47,14 @@ async function gerarGrafico(dados, periodo) {
     },
   };
 
-  const image = await chartJSNodeCanvas.renderToBuffer(configuration);
-  return image;
+  try {
+    const image = await chartJSNodeCanvas.renderToBuffer(configuration);
+    console.log("Gráfico gerado com sucesso!"); // Log para depuração
+    return image;
+  } catch (error) {
+    console.error("Erro ao gerar gráfico:", error); // Log para depuração
+    throw new Error("Erro ao gerar gráfico.");
+  }
 }
 
 // Função para obter dados da planilha

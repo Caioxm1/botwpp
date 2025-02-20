@@ -8,7 +8,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx0Jme17uprJ8fxh7a-vOaEkeFMLzlSu9DFg-iy70FH0KSJ5En6Gv-1D7hUuvXUeckTmg/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCWsOfUD9t7o0PmzUu1QwmvaicsxqBx_9Vdz8grO8b5dhmA03gC_CBc_DICDUgKsyiiw/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -104,6 +104,22 @@ async function iniciarBot() {
 
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || msg.key.participant;
+
+    // Comando de ajuda
+    if (texto === "ajuda") {
+      const mensagemAjuda = `📝 *Comandos Disponíveis* 📝\n
+      • "resumo" - Mostra o resumo financeiro completo\n
+      • "meta" - Exibe detalhes da meta atual\n
+      • "meta definir [valor] [dataInicio] [dataFim]" - Define uma nova meta\n
+      • "entrada [valor]" - Registra uma entrada\n
+      • "saída [valor]" - Registra uma saída\n
+      • "média" - Mostra a média das entradas\n
+      • "gráfico semanal" - Envia um gráfico semanal\n
+      • "gráfico mensal" - Envia um gráfico mensal\n
+      • "ajuda" - Exibe esta mensagem`;
+      await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
+      return;
+    }
 
     // Comando de gráfico semanal
     if (texto === "gráfico semanal" || texto === "grafico semanal") {

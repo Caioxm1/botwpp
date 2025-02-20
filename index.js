@@ -14,9 +14,11 @@ const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 // Servidor WebSocket para enviar o QR code
 const wss = new WebSocket.Server({ port: 8080 });
 
+let sock;
+
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const sock = makeWASocket({ auth: state });
+  sock = makeWASocket({ auth: state });
   sock.ev.on('creds.update', saveCreds);
 
   // Listener para eventos de conexão (envia o QR code via WebSocket e exibe o link no log)
@@ -36,6 +38,9 @@ async function iniciarBot() {
     }
     if (connection === 'open') {
       console.log('Bot conectado ao WhatsApp!');
+    } else if (connection === 'close') {
+      console.log('Conexão fechada, tentando reconectar...');
+      setTimeout(iniciarBot, 5000); // Tenta reconectar após 5 segundos
     }
   });
 

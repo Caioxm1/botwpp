@@ -3,8 +3,7 @@ const axios = require('axios');
 const express = require('express');
 const WebSocket = require('ws');
 const cron = require('node-cron');
-const { createCanvas } = require('canvas'); // Para gerar gráficos
-const Chart = require('chart.js/auto'); // Para criar gráficos
+const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 
 const app = express();
 app.use(express.json());
@@ -17,11 +16,11 @@ let sock;
 
 // Função para gerar gráfico e salvar como imagem
 async function gerarGrafico(dados, periodo) {
-  const canvas = createCanvas(800, 400);
-  const ctx = canvas.getContext('2d');
+  const width = 800; // Largura da imagem
+  const height = 400; // Altura da imagem
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height });
 
-  // Configuração do gráfico
-  new Chart(ctx, {
+  const configuration = {
     type: 'bar',
     data: {
       labels: dados.labels,
@@ -40,11 +39,10 @@ async function gerarGrafico(dados, periodo) {
         },
       },
     },
-  });
+  };
 
-  // Salvar a imagem
-  const buffer = canvas.toBuffer('image/png');
-  return buffer;
+  const image = await chartJSNodeCanvas.renderToBuffer(configuration);
+  return image;
 }
 
 // Função para obter dados da planilha
@@ -90,22 +88,6 @@ async function iniciarBot() {
 
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || msg.key.participant;
-
-    // Comando de ajuda
-    if (texto === "ajuda") {
-      const mensagemAjuda = `📝 *Comandos Disponíveis* 📝\n
-      • "resumo" - Mostra o resumo financeiro completo\n
-      • "meta" - Exibe detalhes da meta atual\n
-      • "meta definir [valor] [dataInicio] [dataFim]" - Define uma nova meta\n
-      • "entrada [valor]" - Registra uma entrada\n
-      • "saída [valor]" - Registra uma saída\n
-      • "média" - Mostra a média das entradas\n
-      • "gráfico semanal" - Envia um gráfico semanal\n
-      • "gráfico mensal" - Envia um gráfico mensal\n
-      • "ajuda" - Exibe esta mensagem`;
-      await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
-      return;
-    }
 
     // Comando de gráfico semanal
     if (texto === "gráfico semanal" || texto === "grafico semanal") {

@@ -3,13 +3,13 @@ const axios = require('axios');
 const express = require('express');
 const WebSocket = require('ws');
 const cron = require('node-cron');
-const { createCanvas, loadImage } = require('canvas'); // Para gerar gráficos
+const { createCanvas } = require('canvas'); // Para gerar gráficos
 const Chart = require('chart.js/auto'); // Para criar gráficos
 
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzGAJ7W-lqXR3y6S0Avo2Wcw_DU7vwRib50mequHPIudcp1V_I1JZFAJYbvQ9Si9Qf1zw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxMy21W0FffgVPQfaDqAbP-TdsmDE3iM7_rJUkaypKcKTOU6jsqDlZBhAL7CgObzddf/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });

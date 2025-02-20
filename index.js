@@ -6,7 +6,7 @@ const WebSocket = require('ws');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyeGpKLC9iDiqXugresc-wTTb5UW6WCKTO5nBEE2BaMPOvJqDMiNVqhVlXzgC2Qr4cYNw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwRDmV7AE1mq09Wkn4OqcPj_ZqVOVuozGsFptpTVUejl2WXk-NtMyDyRCiwjdemUo9hmw/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 // Servidor WebSocket para enviar o QR code
@@ -56,7 +56,8 @@ async function iniciarBot() {
     if (texto === "resumo") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
-        await sock.sendMessage(GRUPO_ID, { text: resposta.data }); // Resposta é tratada como texto
+        const resumo = resposta.data; // Resposta é tratada como texto
+        await sock.sendMessage(GRUPO_ID, { text: resumo });
       } catch (error) {
         console.error("Erro ao obter resumo:", error);
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter resumo financeiro." });
@@ -68,7 +69,8 @@ async function iniciarBot() {
     if (texto === "meta") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
-        await sock.sendMessage(GRUPO_ID, { text: resposta.data }); // Resposta é tratada como texto
+        const metaData = resposta.data; // Resposta é tratada como texto
+        await sock.sendMessage(GRUPO_ID, { text: metaData });
       } catch (error) {
         console.error("Erro ao obter informações da meta:", error);
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });

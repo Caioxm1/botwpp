@@ -1,15 +1,15 @@
-const { default: makeWASocket, useMultiFileAuthState, makeWALegacySocket } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, makeInMemoryStore, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
-const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode-terminal');
+const fs = require('fs');
 
 // Configuração do servidor para receber notificações do Google Apps Script
 const app = express();
 app.use(express.json());
 
 // URL do Google Apps Script
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxA3YkI_y4gOoRCCoc93Z8bMwY1m2X-qDtUa52f48q8X1-4ZKoucLPQR0ZJm740FGEelQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxMbawtEiSnfDJ7qnttHPzCPBxWoZJBJzywCByaui_hGNi_DiHeU6lvOWz0L4uJcIhd/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 async function iniciarBot() {
@@ -17,17 +17,12 @@ async function iniciarBot() {
   const sock = makeWASocket({ auth: state });
   sock.ev.on('creds.update', saveCreds);
 
-  // Exibir QR Code no terminal
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update;
+  // Exibir QR Code como link
+  sock.ev.on('connection.update', async (update) => {
+    const { qr } = update;
     if (qr) {
-      qrcode.generate(qr, { small: true });
-    }
-    if (connection === 'close') {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) {
-        iniciarBot();
-      }
+      qrcode.generate(qr, { small: true }); // Exibir QR Code no terminal
+      console.log(`Escaneie o QR Code pelo link: https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
     }
   });
 
@@ -38,7 +33,6 @@ async function iniciarBot() {
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || msg.key.participant;
 
-    // Comando para obter resumo financeiro
     if (texto === "resumo") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
@@ -49,7 +43,6 @@ async function iniciarBot() {
       return;
     }
 
-    // Comando para verificar meta
     if (texto === "meta") {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
@@ -60,7 +53,6 @@ async function iniciarBot() {
       return;
     }
 
-    // Comando para definir meta
     if (texto.startsWith("meta definir")) {
       try {
         const parametros = texto.replace("meta definir", "").trim().split(" ");
@@ -81,7 +73,6 @@ async function iniciarBot() {
       return;
     }
 
-    // Captura entradas e saídas de dinheiro
     let tipo = "";
     let valor = 0;
     if (texto.startsWith("entrada")) {
@@ -105,7 +96,6 @@ async function iniciarBot() {
   console.log("Bot iniciado!");
 }
 
-// Endpoint para receber notificação da meta atingida
 app.post('/meta-atingida', async (req, res) => {
   const mensagem = req.body.mensagem;
   if (!mensagem) {
@@ -120,6 +110,5 @@ app.post('/meta-atingida', async (req, res) => {
   }
 });
 
-// Iniciar o servidor Express e o bot
 app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
 iniciarBot();

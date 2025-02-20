@@ -2,18 +2,15 @@ const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysocket
 const axios = require('axios');
 const express = require('express');
 const WebSocket = require('ws');
+const cron = require('node-cron');
 
-// Configuração do servidor para receber notificações do Google Apps Script
 const app = express();
 app.use(express.json());
 
-// URL do Google Apps Script
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxMbawtEiSnfDJ7qnttHPzCPBxWoZJBJzywCByaui_hGNi_DiHeU6lvOWz0L4uJcIhd/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxJJnzp3fJ99OKzymC4kieJV1viOaWF1WE4xiXbQHe-o4m6intkwVpIH221kjwo5d8zIQ/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
-// Servidor WebSocket para enviar o QR code
 const wss = new WebSocket.Server({ port: 8080 });
-
 let sock;
 
 async function iniciarBot() {
@@ -21,7 +18,6 @@ async function iniciarBot() {
   sock = makeWASocket({ auth: state });
   sock.ev.on('creds.update', saveCreds);
 
-  // Listener para eventos de conexão (envia o QR code via WebSocket e exibe o link no log)
   sock.ev.on('connection.update', (update) => {
     const { connection, qr } = update;
     if (qr) {
@@ -29,7 +25,6 @@ async function iniciarBot() {
       console.log('Escaneie o QR code abaixo para autenticar o bot:');
       console.log(qrLink);
 
-      // Envia o QR code para todos os clientes WebSocket conectados
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({ qr: qrLink }));
@@ -40,7 +35,7 @@ async function iniciarBot() {
       console.log('Bot conectado ao WhatsApp!');
     } else if (connection === 'close') {
       console.log('Conexão fechada, tentando reconectar...');
-      setTimeout(iniciarBot, 5000); // Tenta reconectar após 5 segundos
+      setTimeout(iniciarBot, 5000);
     }
   });
 
@@ -51,24 +46,49 @@ async function iniciarBot() {
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || msg.key.participant;
 
-    // Comando para obter resumo financeiro
-    if (texto === "resumo") {
+    // Comando de ajuda
+    if (texto === "ajuda") {
+      const mensagemAjuda = `📝 *Comandos Disponíveis* 📝\n
+      • "resumo" - Mostra o resumo financeiro completo\n
+      • "meta" - Exibe detalhes da meta atual\n
+      • "meta definir [valor] [dataInicio] [dataFim]" - Define uma nova meta\n
+      • "entrada [valor]" - Registra uma entrada\n
+      • "saída [valor]" - Registra uma saída\n
+      • "média" - Mostra a média das entradas\n
+      • "ajuda" - Exibe esta mensagem`;
+      await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
+      return;
+    }
+
+    // Comando de média
+    if (texto === "média") {
       try {
-        const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
-        await sock.sendMessage(GRUPO_ID, { text: `📊 *Resumo Financeiro* 📊\n\n${resposta.data}` });
+        const resposta = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
       } catch (error) {
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter resumo financeiro." });
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao calcular média." });
       }
       return;
     }
 
-    // Comando para verificar meta
+    // Comando meta ajustado
     if (texto === "meta") {
       try {
-        const resposta = await axios.get(`${WEB_APP_URL}?action=meta`);
+        const resposta = await axios.get(`${WEB_APP_URL}?action=metaSimplificada`);
         await sock.sendMessage(GRUPO_ID, { text: resposta.data });
       } catch (error) {
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter informações da meta." });
+      }
+      return;
+    }
+
+    // Comando para obter resumo financeiro
+    if (texto === "resumo") {
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter resumo financeiro." });
       }
       return;
     }
@@ -130,6 +150,34 @@ app.post('/meta-atingida', async (req, res) => {
     res.status(200).send("Mensagem enviada com sucesso");
   } catch (error) {
     res.status(500).send("Erro ao enviar mensagem");
+  }
+});
+
+// Agendamento de mensagens automáticas
+cron.schedule('0 22 * * *', async () => { // Todos os dias às 22h
+  try {
+    const resumoDiario = await axios.get(`${WEB_APP_URL}?action=resumoDiario`);
+    await sock.sendMessage(GRUPO_ID, { text: resumoDiario.data });
+  } catch (error) {
+    console.error("Erro no resumo diário:", error);
+  }
+});
+
+cron.schedule('0 22 * * 0', async () => { // Todo domingo às 22h
+  try {
+    const resumoSemanal = await axios.get(`${WEB_APP_URL}?action=resumoSemanal`);
+    await sock.sendMessage(GRUPO_ID, { text: resumoSemanal.data });
+  } catch (error) {
+    console.error("Erro no resumo semanal:", error);
+  }
+});
+
+cron.schedule('0 22 28-31 * *', async () => { // Último dia do mês às 22h
+  try {
+    const resumoMensal = await axios.get(`${WEB_APP_URL}?action=resumoMensal`);
+    await sock.sendMessage(GRUPO_ID, { text: resumoMensal.data });
+  } catch (error) {
+    console.error("Erro no resumo mensal:", error);
   }
 });
 

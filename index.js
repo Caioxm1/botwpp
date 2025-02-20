@@ -1,6 +1,8 @@
-const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, makeWALegacySocket } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
+const { Boom } = require('@hapi/boom');
+const qrcode = require('qrcode-terminal');
 
 // Configuração do servidor para receber notificações do Google Apps Script
 const app = express();
@@ -14,6 +16,20 @@ async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const sock = makeWASocket({ auth: state });
   sock.ev.on('creds.update', saveCreds);
+
+  // Exibir QR Code no terminal
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect, qr } = update;
+    if (qr) {
+      qrcode.generate(qr, { small: true });
+    }
+    if (connection === 'close') {
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      if (shouldReconnect) {
+        iniciarBot();
+      }
+    }
+  });
 
   sock.ev.on('messages.upsert', async (m) => {
     const msg = m.messages[0];

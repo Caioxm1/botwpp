@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzB45pCxnCHO8sifdfHqRwBoN3WIX6-2tAO4SBWo70FB-WDbmRweZJKdBSzepO-nQzJLQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxxTCF_Uf3-gnN-K0yd9cRnRGmNX3B7iUQsLvQuHyTRlwyEWKlGzFNDK8B0NqiYhBkJcw/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -47,7 +47,7 @@ async function iniciarBot() {
     const remetente = msg.pushName || msg.key.participant;
 
     // Comando de ajuda
-    if (texto === "ajuda") {
+    if (["ajuda", "help", "comandos", "comando"].includes(texto)) {
       const mensagemAjuda = `📝 *Comandos Disponíveis* 📝\n
       • "resumo" - Mostra o resumo financeiro completo\n
       • "meta" - Exibe detalhes da meta atual\n
@@ -58,13 +58,22 @@ async function iniciarBot() {
       • "historico [dias]" - Mostra o histórico de transações\n
       • "relatorio [dataInicio] [dataFim]" - Gera um relatório personalizado\n
       • "exportar" - Exporta os dados da planilha\n
+      • "dividir [valor] [pessoas]" - Divide despesas\n
+      • "converter [valor] [moedaOrigem] [moedaDestino]" - Converte moedas\n
+      • "investir [valor] [taxa] [tempo]" - Simula investimentos\n
+      • "analise" - Gera análise de gastos\n
+      • "recorrente adicionar [valor] [descrição] [frequência]" - Adiciona despesa recorrente\n
+      • "orcamento definir [categoria] [valor]" - Define orçamento\n
+      • "divida adicionar [valor] [credor] [data]" - Adiciona dívida\n
+      • "alerta gasto [percentual]" - Configura alerta de gastos\n
+      • "grafico [tipo]" - Gera gráfico financeiro\n
       • "ajuda" - Exibe esta mensagem`;
       await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       return;
     }
 
     // Comando de média
-    if (texto === "média") {
+    if (["média", "media", "média entradas", "media entradas"].includes(texto)) {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
         await sock.sendMessage(GRUPO_ID, { text: resposta.data });
@@ -75,7 +84,7 @@ async function iniciarBot() {
     }
 
     // Comando meta ajustado
-    if (texto === "meta") {
+    if (["meta", "metas", "meta simplificada", "metas simplificadas"].includes(texto)) {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=metaSimplificada`);
         await sock.sendMessage(GRUPO_ID, { text: resposta.data });
@@ -86,7 +95,7 @@ async function iniciarBot() {
     }
 
     // Comando para obter resumo financeiro
-    if (texto === "resumo") {
+    if (["resumo", "resumo financeiro", "resumo completo"].includes(texto)) {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=resumo`);
         await sock.sendMessage(GRUPO_ID, { text: resposta.data });
@@ -142,12 +151,186 @@ async function iniciarBot() {
     }
 
     // Comando para exportar dados
-    if (texto === "exportar") {
+    if (["exportar", "exportação", "exportar dados"].includes(texto)) {
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=exportar`);
         await sock.sendMessage(GRUPO_ID, { text: `📥 Link para download: ${resposta.data}` });
       } catch (error) {
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao exportar dados." });
+      }
+      return;
+    }
+
+    // Comando para dividir despesas
+    if (texto.startsWith("dividir")) {
+      const partes = texto.split(" ");
+      const valor = parseFloat(partes[1]);
+      const pessoas = parseInt(partes[2]);
+
+      if (isNaN(valor) || isNaN(pessoas)) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: dividir <valor> <número de pessoas>" });
+        return;
+      }
+
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=dividir&valor=${valor}&pessoas=${pessoas}`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao dividir despesas." });
+      }
+      return;
+    }
+
+    // Comando para converter moedas
+    if (texto.startsWith("converter")) {
+      const partes = texto.split(" ");
+      const valor = parseFloat(partes[1]);
+      const moedaOrigem = partes[2].toUpperCase();
+      const moedaDestino = partes[3].toUpperCase();
+
+      if (isNaN(valor)) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: converter <valor> <moeda origem> <moeda destino>" });
+        return;
+      }
+
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=converter&valor=${valor}&moedaOrigem=${moedaOrigem}&moedaDestino=${moedaDestino}`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao converter moeda." });
+      }
+      return;
+    }
+
+    // Comando para investimentos
+    if (texto.startsWith("investir")) {
+      const partes = texto.split(" ");
+      const valor = parseFloat(partes[1]);
+      const taxa = parseFloat(partes[2]);
+      const tempo = parseInt(partes[3]);
+
+      if (isNaN(valor) || isNaN(taxa) || isNaN(tempo)) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: investir <valor> <taxa> <tempo>" });
+        return;
+      }
+
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=investir&valor=${valor}&taxa=${taxa}&tempo=${tempo}`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao calcular investimento." });
+      }
+      return;
+    }
+
+    // Comando para análise de gastos
+    if (["analise", "análise", "analise gastos", "análise gastos"].includes(texto)) {
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=analise`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar análise." });
+      }
+      return;
+    }
+
+    // Comando para despesas recorrentes
+    if (texto.startsWith("recorrente")) {
+      const partes = texto.split(" ");
+      if (partes[1] === "adicionar") {
+        const valor = parseFloat(partes[2]);
+        const descricao = partes[3];
+        const frequencia = partes[4];
+
+        if (isNaN(valor)) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: recorrente adicionar <valor> <descrição> <frequência>" });
+          return;
+        }
+
+        try {
+          await axios.post(WEB_APP_URL, { action: "adicionarRecorrente", valor, descricao, frequencia });
+          await sock.sendMessage(GRUPO_ID, { text: `✅ Despesa recorrente adicionada: ${descricao} - R$${valor} (${frequencia})` });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao adicionar despesa recorrente." });
+        }
+      }
+      return;
+    }
+
+    // Comando para orçamento
+    if (texto.startsWith("orcamento")) {
+      const partes = texto.split(" ");
+      if (partes[1] === "definir") {
+        const categoria = partes[2];
+        const valor = parseFloat(partes[3]);
+
+        if (isNaN(valor)) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: orcamento definir <categoria> <valor>" });
+          return;
+        }
+
+        try {
+          await axios.post(WEB_APP_URL, { action: "definirOrcamento", categoria, valor });
+          await sock.sendMessage(GRUPO_ID, { text: `✅ Orçamento definido para ${categoria}: R$${valor}` });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao definir orçamento." });
+        }
+      }
+      return;
+    }
+
+    // Comando para dívidas
+    if (texto.startsWith("divida")) {
+      const partes = texto.split(" ");
+      if (partes[1] === "adicionar") {
+        const valor = parseFloat(partes[2]);
+        const credor = partes[3];
+        const data = partes[4];
+
+        if (isNaN(valor)) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: divida adicionar <valor> <credor> <data>" });
+          return;
+        }
+
+        try {
+          await axios.post(WEB_APP_URL, { action: "adicionarDivida", valor, credor, data });
+          await sock.sendMessage(GRUPO_ID, { text: `✅ Dívida adicionada: R$${valor} para ${credor} (${data})` });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao adicionar dívida." });
+        }
+      }
+      return;
+    }
+
+    // Comando para alerta de gastos
+    if (texto.startsWith("alerta")) {
+      const partes = texto.split(" ");
+      if (partes[1] === "gasto") {
+        const percentual = parseFloat(partes[2]);
+
+        if (isNaN(percentual)) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: alerta gasto <percentual>" });
+          return;
+        }
+
+        try {
+          await axios.post(WEB_APP_URL, { action: "alertaGasto", percentual });
+          await sock.sendMessage(GRUPO_ID, { text: `✅ Alerta configurado para gastos acima de ${percentual}% do orçamento.` });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao configurar alerta." });
+        }
+      }
+      return;
+    }
+
+    // Comando para gráficos
+    if (texto.startsWith("grafico")) {
+      const tipo = texto.split(" ")[1];
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=grafico&tipo=${tipo}`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar gráfico." });
       }
       return;
     }

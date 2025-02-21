@@ -1,24 +1,21 @@
 {
   "name": "botwpp",
   "version": "1.0.0",
-  "description": "Bot do WhatsApp para controle financeiro",
+  "description": "Bot financeiro para WhatsApp",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "license": "MIT",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.13",
-    "axios": "^1.7.9",
-    "express": "^4.21.2",
-    "ws": "^8.16.0",
-    "node-cron": "^3.0.2",
-    "chart.js": "^4.4.0",
-    "chartjs-node-canvas": "^4.1.6"
+    "axios": "^1.9.2",
+    "chart.js": "^3.9.1", // Versão 3.x para compatibilidade
+    "chartjs-node-canvas": "^4.1.6",
+    "express": "^4.18.2",
+    "ws": "^8.16.0"
   },
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=7.0.0"
+    "node": "18.x" // Versão estável do Node.js
   }
 }

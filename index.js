@@ -7,14 +7,21 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwwZ72y-oJvCp4aMeok7HYKVJ_eZxajzT2Oly7_9RoEqIJHI2b7UVJNEUNpRMel8azTPA/exec';
-const GRUPO_ID = '120363403512588677@g.us';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwwZ72y-oJvCp4aMeok7HYKVJ_eZxajzT2Oly7_9RoEqIJHI2b7UVJNEUNpRMel8azTPA/exec'; // Substitua pela URL do seu Google Apps Script
+const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 // Configuração do gráfico
-const chartJSNodeCanvas = new ChartJSNodeCanvas({ 
-  width: 800, 
-  height: 600, 
-  backgroundColour: 'white' 
+const width = 800; // Largura do gráfico
+const height = 600; // Altura do gráfico
+const backgroundColour = 'white'; // Cor de fundo
+
+const chartJSNodeCanvas = new ChartJSNodeCanvas({
+  width,
+  height,
+  backgroundColour,
+  plugins: {
+    modern: ['chartjs-plugin-datalabels'] // Adicione plugins modernos, se necessário
+  }
 });
 
 async function gerarGrafico(tipo, dados) {
@@ -53,6 +60,8 @@ async function iniciarBot() {
     const texto = msg.message.conversation?.toLowerCase().trim();
     if (!texto) return;
 
+    console.log(`Comando recebido: ${texto}`);
+
     // Comando de gráfico
     if (texto.startsWith('grafico')) {
       const partes = texto.split(' ');
@@ -85,7 +94,10 @@ async function iniciarBot() {
       }
     }
   });
+
+  console.log("Bot iniciado!");
 }
 
-app.listen(3000, () => console.log('Servidor rodando na porta 3000'));
+// Iniciar o servidor Express e o bot
+app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
 iniciarBot();

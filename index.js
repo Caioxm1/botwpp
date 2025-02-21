@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwSDqKA9roQd-KxOySRSHonH_T8xDcorSUMu1gv7gk6GpFnw5BJnuQYXanCR-ogpzSLdw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCRV405pg900gUyQUumLv6vPGizeBZ-lHabe4AfjHWCi5GWPQ2admMRhlV0o2qNyCrXw/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });

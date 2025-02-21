@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCRV405pg900gUyQUumLv6vPGizeBZ-lHabe4AfjHWCi5GWPQ2admMRhlV0o2qNyCrXw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw5QWwHEbC1mnvTxKVpifz1gNLCt-H44PXam_sI3iU-_fyoSCf7-9Wbpvgat0dhjI6zxA/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -55,6 +55,9 @@ async function iniciarBot() {
       • "entrada [valor]" - Registra uma entrada\n
       • "saída [valor]" - Registra uma saída\n
       • "média" - Mostra a média das entradas\n
+      • "historico [dias]" - Mostra o histórico de transações\n
+      • "relatorio [dataInicio] [dataFim]" - Gera um relatório personalizado\n
+      • "exportar" - Exporta os dados da planilha\n
       • "ajuda" - Exibe esta mensagem`;
       await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       return;
@@ -110,6 +113,41 @@ async function iniciarBot() {
         await sock.sendMessage(GRUPO_ID, { text: `✅ Meta de R$${valor} definida de ${dataInicio} até ${dataFim}.` });
       } catch (error) {
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao definir a meta." });
+      }
+      return;
+    }
+
+    // Comando para histórico de transações
+    if (texto.startsWith("historico")) {
+      const periodo = parseInt(texto.replace("historico", "").trim());
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=historico&periodo=${periodo}`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter histórico." });
+      }
+      return;
+    }
+
+    // Comando para relatório personalizado
+    if (texto.startsWith("relatorio")) {
+      const [dataInicio, dataFim] = texto.replace("relatorio", "").trim().split(" ");
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=relatorio&dataInicio=${dataInicio}&dataFim=${dataFim}`);
+        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar relatório." });
+      }
+      return;
+    }
+
+    // Comando para exportar dados
+    if (texto === "exportar") {
+      try {
+        const resposta = await axios.get(`${WEB_APP_URL}?action=exportar`);
+        await sock.sendMessage(GRUPO_ID, { text: `📥 Link para download: ${resposta.data}` });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao exportar dados." });
       }
       return;
     }

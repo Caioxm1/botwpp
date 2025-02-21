@@ -7,7 +7,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxxTCF_Uf3-gnN-K0yd9cRnRGmNX3B7iUQsLvQuHyTRlwyEWKlGzFNDK8B0NqiYhBkJcw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx5m-hYtRBTFFwP5FH_pYn9PVyRos5Zw0JuMygEtrWG78ea6FlbhYGl40deQ4upybjsVw/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -57,12 +57,12 @@ async function iniciarBot() {
       • "média" - Mostra a média das entradas\n
       • "historico [dias]" - Mostra o histórico de transações\n
       • "relatorio [dataInicio] [dataFim]" - Gera um relatório personalizado\n
-      • "exportar" - Exporta os dados da planilha\n
       • "dividir [valor] [pessoas]" - Divide despesas\n
       • "converter [valor] [moedaOrigem] [moedaDestino]" - Converte moedas\n
       • "investir [valor] [taxa] [tempo]" - Simula investimentos\n
       • "analise" - Gera análise de gastos\n
       • "recorrente adicionar [valor] [descrição] [frequência]" - Adiciona despesa recorrente\n
+      • "recorrente listar" - Lista despesas recorrentes\n
       • "orcamento definir [categoria] [valor]" - Define orçamento\n
       • "divida adicionar [valor] [credor] [data]" - Adiciona dívida\n
       • "alerta gasto [percentual]" - Configura alerta de gastos\n
@@ -146,17 +146,6 @@ async function iniciarBot() {
         await sock.sendMessage(GRUPO_ID, { text: resposta.data });
       } catch (error) {
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar relatório." });
-      }
-      return;
-    }
-
-    // Comando para exportar dados
-    if (["exportar", "exportação", "exportar dados"].includes(texto)) {
-      try {
-        const resposta = await axios.get(`${WEB_APP_URL}?action=exportar`);
-        await sock.sendMessage(GRUPO_ID, { text: `📥 Link para download: ${resposta.data}` });
-      } catch (error) {
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao exportar dados." });
       }
       return;
     }
@@ -248,10 +237,17 @@ async function iniciarBot() {
         }
 
         try {
-          await axios.post(WEB_APP_URL, { action: "adicionarRecorrente", valor, descricao, frequencia });
+          await axios.post(WEB_APP_URL, { action: "adicionarRecorrente", valor, descricao, frequencia, remetente });
           await sock.sendMessage(GRUPO_ID, { text: `✅ Despesa recorrente adicionada: ${descricao} - R$${valor} (${frequencia})` });
         } catch (error) {
           await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao adicionar despesa recorrente." });
+        }
+      } else if (partes[1] === "listar") {
+        try {
+          const resposta = await axios.get(`${WEB_APP_URL}?action=listarRecorrentes`);
+          await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao listar despesas recorrentes." });
         }
       }
       return;

@@ -88,7 +88,8 @@ async function iniciarBot() {
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || msg.key.participant;
 
-    console.log(`Comando recebido: ${texto}`); // Depuração
+    console.log(`Mensagem recebida: ${texto}`); // Depuração
+    console.log(`Remetente: ${remetente}`); // Depuração
 
     // Comando de ajuda
     if (["ajuda", "help", "comandos", "comando"].includes(texto)) {
@@ -145,49 +146,6 @@ async function iniciarBot() {
 
   console.log("Bot iniciado!");
 }
-
-// Endpoint para receber notificação da meta atingida
-app.post('/meta-atingida', async (req, res) => {
-  const mensagem = req.body.mensagem;
-  if (!mensagem) {
-    return res.status(400).send("Mensagem inválida");
-  }
-
-  try {
-    await sock.sendMessage(GRUPO_ID, { text: mensagem });
-    res.status(200).send("Mensagem enviada com sucesso");
-  } catch (error) {
-    res.status(500).send("Erro ao enviar mensagem");
-  }
-});
-
-// Agendamento de mensagens automáticas
-cron.schedule('0 22 * * *', async () => { // Todos os dias às 22h
-  try {
-    const resumoDiario = await axios.get(`${WEB_APP_URL}?action=resumoDiario`);
-    await sock.sendMessage(GRUPO_ID, { text: resumoDiario.data });
-  } catch (error) {
-    console.error("Erro no resumo diário:", error);
-  }
-});
-
-cron.schedule('0 22 * * 0', async () => { // Todo domingo às 22h
-  try {
-    const resumoSemanal = await axios.get(`${WEB_APP_URL}?action=resumoSemanal`);
-    await sock.sendMessage(GRUPO_ID, { text: resumoSemanal.data });
-  } catch (error) {
-    console.error("Erro no resumo semanal:", error);
-  }
-});
-
-cron.schedule('0 22 28-31 * *', async () => { // Último dia do mês às 22h
-  try {
-    const resumoMensal = await axios.get(`${WEB_APP_URL}?action=resumoMensal`);
-    await sock.sendMessage(GRUPO_ID, { text: resumoMensal.data });
-  } catch (error) {
-    console.error("Erro no resumo mensal:", error);
-  }
-});
 
 // Iniciar o servidor Express e o bot
 app.listen(3000, () => console.log("Servidor rodando na porta 3000"));

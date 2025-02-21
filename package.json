@@ -10,12 +10,12 @@
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.13",
     "axios": "^1.9.2",
-    "chart.js": "^3.9.1", // Versão 3.x para compatibilidade
+    "chart.js": "^3.9.1",
     "chartjs-node-canvas": "^4.1.6",
     "express": "^4.18.2",
     "ws": "^8.16.0"
   },
   "engines": {
-    "node": "18.x" // Versão estável do Node.js
+    "node": "18.x"
   }
 }

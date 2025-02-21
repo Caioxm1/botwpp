@@ -7,14 +7,18 @@
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "license": "MIT",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.13",
     "axios": "^1.7.9",
     "express": "^4.21.2",
     "ws": "^8.16.0",
     "node-cron": "^3.0.2",
-    "license": "MIT",
     "chart.js": "^4.4.0",
     "chartjs-node-canvas": "^4.1.6"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
   }
 }

@@ -3,15 +3,55 @@ const axios = require('axios');
 const express = require('express');
 const WebSocket = require('ws');
 const cron = require('node-cron');
+const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx5m-hYtRBTFFwP5FH_pYn9PVyRos5Zw0JuMygEtrWG78ea6FlbhYGl40deQ4upybjsVw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz1ZkJ_tLd1JaedkqnYGx9ugYClCEhRGfFSxf6Cxnm7er-f8sdj57ZsqTRfZ3SEWo9RTQ/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });
 let sock;
+
+// Função para gerar gráficos
+async function gerarGrafico(tipo, dados) {
+  const width = 800; // Largura do gráfico
+  const height = 600; // Altura do gráfico
+  const backgroundColour = 'white'; // Cor de fundo
+
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour });
+
+  const configuration = {
+    type: tipo, // Tipo de gráfico (bar, line, pie, etc.)
+    data: {
+      labels: dados.labels, // Rótulos do gráfico
+      datasets: [{
+        label: dados.label, // Legenda do gráfico
+        data: dados.valores, // Valores do gráfico
+        backgroundColor: dados.cores, // Cores das barras/fatias
+        borderColor: dados.bordas, // Cores das bordas
+        borderWidth: 2, // Espessura da borda
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        title: {
+          display: true,
+          text: dados.titulo, // Título do gráfico
+        }
+      }
+    }
+  };
+
+  // Gera a imagem do gráfico
+  const image = await chartJSNodeCanvas.renderToBuffer(configuration);
+  return image;
+}
 
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
@@ -127,11 +167,28 @@ async function iniciarBot() {
     }
 
     // Comando para histórico de transações
-    if (texto.startsWith("historico")) {
-      const periodo = parseInt(texto.replace("historico", "").trim());
+    if (["historico", "histórico", "HISTORICO", "HISTÓRICO"].includes(texto.toLowerCase())) {
+      const periodo = parseInt(texto.replace(/historico|histórico/i, "").trim());
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=historico&periodo=${periodo}`);
-        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+        const dados = resposta.data;
+
+        // Calcular totais de entrada, saída e saldo
+        let totalEntrada = 0;
+        let totalSaida = 0;
+        const transacoes = dados.split("\n").slice(1); // Ignorar o cabeçalho
+        transacoes.forEach(transacao => {
+          const partes = transacao.split(" | ");
+          const tipo = partes[1];
+          const valor = parseFloat(partes[2].replace("R$", ""));
+          if (tipo === "Entrada") totalEntrada += valor;
+          else if (tipo === "Saída") totalSaida += valor;
+        });
+
+        const saldo = totalEntrada - totalSaida;
+        const respostaCompleta = `${dados}\n\n💰 *Total Entradas*: R$${totalEntrada.toFixed(2)}\n💸 *Total Saídas*: R$${totalSaida.toFixed(2)}\n🔹 *Saldo*: R$${saldo.toFixed(2)}`;
+
+        await sock.sendMessage(GRUPO_ID, { text: respostaCompleta });
       } catch (error) {
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao obter histórico." });
       }
@@ -139,8 +196,8 @@ async function iniciarBot() {
     }
 
     // Comando para relatório personalizado
-    if (texto.startsWith("relatorio")) {
-      const [dataInicio, dataFim] = texto.replace("relatorio", "").trim().split(" ");
+    if (texto.toLowerCase().startsWith("relatorio")) {
+      const [dataInicio, dataFim] = texto.replace(/relatorio/i, "").trim().split(" ");
       try {
         const resposta = await axios.get(`${WEB_APP_URL}?action=relatorio&dataInicio=${dataInicio}&dataFim=${dataFim}`);
         await sock.sendMessage(GRUPO_ID, { text: resposta.data });
@@ -294,6 +351,13 @@ async function iniciarBot() {
         } catch (error) {
           await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao adicionar dívida." });
         }
+      } else if (partes[1] === "listar") {
+        try {
+          const resposta = await axios.get(`${WEB_APP_URL}?action=listarDividas`);
+          await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao listar dívidas." });
+        }
       }
       return;
     }
@@ -320,12 +384,21 @@ async function iniciarBot() {
     }
 
     // Comando para gráficos
-    if (texto.startsWith("grafico")) {
-      const tipo = texto.split(" ")[1];
+    if (["grafico", "gráfico", "GRAFICO", "GRÁFICO"].includes(texto.toLowerCase())) {
+      const tipoGrafico = texto.split(" ")[1]; // Tipo de gráfico (bar, line, pie, etc.)
+      const tipoDados = texto.split(" ")[2]; // Entrada ou Saída
       try {
-        const resposta = await axios.get(`${WEB_APP_URL}?action=grafico&tipo=${tipo}`);
-        await sock.sendMessage(GRUPO_ID, { text: resposta.data });
+        // Busca os dados da planilha
+        const resposta = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}`);
+        const dados = resposta.data;
+
+        // Gera o gráfico
+        const image = await gerarGrafico(tipoGrafico, dados);
+
+        // Envia a imagem do gráfico no WhatsApp
+        await sock.sendMessage(GRUPO_ID, { image: image, caption: `📊 Gráfico de ${tipoDados}` });
       } catch (error) {
+        console.error("Erro ao gerar gráfico:", error);
         await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar gráfico." });
       }
       return;

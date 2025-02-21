@@ -8,7 +8,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby_5bTQd7oC25yGSW3Ph6MxWyeODHfKSQofd5TYLc0zXrvFt5Up_aoHGeq0JUbmBNXkFA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzlEp4RFBJO9i8xYA_qo4yzrqi9Q7ilRN3qA7jKDjbLIJw5KstlTtJH6bYaEfPFO1QbnQ/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -17,6 +17,8 @@ let sock;
 // Função para gerar gráficos
 async function gerarGrafico(tipo, dados) {
   console.log("Gerando gráfico..."); // Depuração
+  console.log("Dados recebidos:", dados); // Depuração
+
   const width = 800; // Largura do gráfico
   const height = 600; // Altura do gráfico
   const backgroundColour = 'white'; // Cor de fundo
@@ -122,6 +124,10 @@ async function iniciarBot() {
       console.log("Comando gráfico detectado!"); // Depuração
       const tipoGrafico = texto.split(" ")[1]; // Tipo de gráfico (bar, line, pie, etc.)
       const tipoDados = texto.split(" ")[2]; // Entrada, Saída ou Ambos
+
+      console.log(`Tipo de gráfico: ${tipoGrafico}`); // Depuração
+      console.log(`Tipo de dados: ${tipoDados}`); // Depuração
+
       try {
         // Busca os dados da planilha
         const resposta = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}`);

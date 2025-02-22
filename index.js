@@ -8,7 +8,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyOJ-yWT5ZNx744IeJuGtLcIQ4uyRhWUPOyadnOUhIEsLVOd4an4Rr1QzZYXtQbNR_m/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwxKANCCFl6U4Gsd6a_r--QDiR0cvx3nP7iEm-5UWCvRIQPymwJkdVHx_r-QWDUUh3nWQ/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -72,7 +72,7 @@ async function iniciarBot() {
     try {
       // Comando de ajuda
       if (texto === 'ajuda') {
-        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]`;
+        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]`;
         await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       }
 
@@ -94,6 +94,19 @@ async function iniciarBot() {
       else if (texto === 'resumo') {
         const resumo = await axios.get(WEB_APP_URL);
         await sock.sendMessage(GRUPO_ID, { text: resumo.data });
+      }
+
+      // Comando para definir meta
+      else if (texto.startsWith('meta definir')) {
+        const partes = texto.split(' ');
+        if (partes.length < 5) throw new Error("Formato: meta definir [valor] [dataInicio] [dataFim]");
+
+        const valor = partes[2];
+        const dataInicio = partes[3];
+        const dataFim = partes[4];
+
+        await axios.post(WEB_APP_URL, { action: "definirMeta", valor: valor, dataInicio: dataInicio, dataFim: dataFim });
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Meta de R$${valor} definida de ${dataInicio} até ${dataFim}.` });
       }
 
       // Comando para registrar entrada

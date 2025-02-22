@@ -18,10 +18,7 @@ const backgroundColour = 'white'; // Cor de fundo
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
   width,
   height,
-  backgroundColour,
-  plugins: {
-    modern: ['chartjs-plugin-datalabels'] // Adicione plugins modernos, se necessário
-  }
+  backgroundColour
 });
 
 async function gerarGrafico(tipo, dados) {

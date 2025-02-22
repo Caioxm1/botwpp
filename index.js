@@ -7,7 +7,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyyKzgiaWp6kWWo5VK31G_YVhF5vu850g3l-DmnXKJlrEendj-srLcG04uVa9mO-NzDSg/exec'; // Substitua pela URL do seu Google Apps Script
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxrjEcqhUFs5hWVacEMSJ_--i2RPTGAJuBMGc8cBPrwbiezkg4aoAFvzMwtx3SYNw1oUQ/exec'; // Substitua pela URL do seu Google Apps Script
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 // Configuração do gráfico
@@ -120,11 +120,11 @@ async function iniciarBot() {
     // Comando para gráficos
     if (texto.startsWith('grafico')) {
       const partes = texto.split(' ');
-      if (partes.length < 4) return;
+      if (partes.length < 3) return;
 
       const tipoGrafico = partes[1]; // bar, line
       const tipoDados = partes[2].toLowerCase(); // entrada, saida, ambos
-      const periodo = partes[3].toLowerCase(); // diario, semanal, mensal
+      const periodo = partes[3] ? partes[3].toLowerCase() : "todos"; // diario, semanal, mensal, ou todos
 
       try {
         const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`, {

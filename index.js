@@ -2,13 +2,13 @@ const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysocket
 const axios = require('axios');
 const express = require('express');
 const WebSocket = require('ws');
-const cron = require('node-cron');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
+const cron = require('node-cron');
 
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzCTdnJc4aZ6vaj52jWR3omd2p8UEIjUjCvyCegk6o-Ck5gBH4zB4C6Kv4a5btrlo2wBA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwerFzFUtHdBzFQtmgEeqKuuQfdPUCYF4v6ZTVXobXYYLzR5rZ1MfHdWDeYRhmuNa250w/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -67,7 +67,7 @@ async function iniciarBot() {
     if (!msg.message || msg.key.remoteJid !== GRUPO_ID) return;
 
     const texto = msg.message.conversation?.toLowerCase().trim();
-    const remetente = msg.pushName || msg.key.participant;
+    const remetente = msg.pushName || "Usuário";
 
     try {
       // Comando de ajuda
@@ -90,12 +90,13 @@ async function iniciarBot() {
         await sock.sendMessage(GRUPO_ID, { image: image, caption: `📊 ${response.data.titulo}` });
       }
 
-      // Demais comandos originais (mantidos sem alteração)
+      // Comando para resumo financeiro
       else if (texto === 'resumo') {
         const resumo = await axios.get(WEB_APP_URL);
         await sock.sendMessage(GRUPO_ID, { text: resumo.data });
       }
 
+      // Comando para definir meta
       else if (texto.startsWith('meta definir')) {
         const partes = texto.split(' ');
         if (partes.length < 5) throw new Error("Formato: meta definir [valor] [dataInicio] [dataFim]");
@@ -103,18 +104,27 @@ async function iniciarBot() {
         await sock.sendMessage(GRUPO_ID, { text: "✅ Meta definida!" });
       }
 
+      // Comando para registrar entrada
       else if (texto.startsWith('entrada')) {
-        const valor = texto.split(' ')[1];
+        const partes = texto.split(' ');
+        if (partes.length < 2) throw new Error("Formato: entrada [valor]");
+
+        const valor = partes[1];
         await axios.post(WEB_APP_URL, { tipo: "Entrada", valor: valor, remetente: remetente });
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada de R$${valor} registrada!` });
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada de R$${valor} registrada por ${remetente}.` });
       }
 
+      // Comando para registrar saída
       else if (texto.startsWith('saída')) {
-        const valor = texto.split(' ')[1];
+        const partes = texto.split(' ');
+        if (partes.length < 2) throw new Error("Formato: saída [valor]");
+
+        const valor = partes[1];
         await axios.post(WEB_APP_URL, { tipo: "Saída", valor: valor, remetente: remetente });
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Saída de R$${valor} registrada!` });
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Saída de R$${valor} registrada por ${remetente}.` });
       }
 
+      // Comando para média de entradas
       else if (texto === 'média') {
         const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
         await sock.sendMessage(GRUPO_ID, { text: media.data });

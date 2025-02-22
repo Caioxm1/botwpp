@@ -7,7 +7,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbypc3tv4waqdWekZ4r2ORwuAm0Arp7DrlQ19CxOQzszn-DQPcXoQrvCTLo_oEV_KGJJFw/exec'; // Substitua pela URL do seu Google Apps Script
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyhBq6PwVKFdXf0ZYfuvKO5LL5TvW56gdAgVoEauC2HePad8I4TMuhFT8fDd0TPEOEd9A/exec'; // Substitua pela URL do seu Google Apps Script
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 // Configuração do gráfico
@@ -151,8 +151,123 @@ async function iniciarBot() {
       return;
     }
 
+    // Comando para resumo financeiro
+    if (texto.startsWith('resumo')) {
+      try {
+        const response = await axios.get(`${WEB_APP_URL}?action=resumoDiario`);
+        const resumoDiario = response.data;
+
+        const responseSemanal = await axios.get(`${WEB_APP_URL}?action=resumoSemanal`);
+        const resumoSemanal = responseSemanal.data;
+
+        const responseMensal = await axios.get(`${WEB_APP_URL}?action=resumoMensal`);
+        const resumoMensal = responseMensal.data;
+
+        const mensagem = `📊 *Resumo Financeiro* 📊\n
+        📅 *Diário*\n
+        💰 Entradas: R$${resumoDiario.entrada}\n
+        💸 Saídas: R$${resumoDiario.saida}\n
+        🏦 Saldo: R$${resumoDiario.saldo}\n\n
+        📅 *Semanal*\n
+        💰 Entradas: R$${resumoSemanal.entrada}\n
+        💸 Saídas: R$${resumoSemanal.saida}\n
+        🏦 Saldo: R$${resumoSemanal.saldo}\n\n
+        📅 *Mensal*\n
+        💰 Entradas: R$${resumoMensal.entrada}\n
+        💸 Saídas: R$${resumoMensal.saida}\n
+        🏦 Saldo: R$${resumoMensal.saldo}`;
+
+        await sock.sendMessage(GRUPO_ID, { text: mensagem });
+      } catch (error) {
+        console.error('Erro detalhado:', error);
+        await sock.sendMessage(GRUPO_ID, { 
+          text: `❌ Falha: ${error.response?.data?.error || error.message}`
+        });
+      }
+      return;
+    }
+
+    // Comando para definir meta
+    if (texto.startsWith('meta definir')) {
+      const partes = texto.split(' ');
+      if (partes.length < 5) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: meta definir [valor] [dataInicio] [dataFim]" });
+        return;
+      }
+
+      const valor = partes[2];
+      const dataInicio = partes[3];
+      const dataFim = partes[4];
+
+      try {
+        const response = await axios.post(`${WEB_APP_URL}?action=definirMeta`, {
+          valor: valor,
+          dataInicio: dataInicio,
+          dataFim: dataFim
+        });
+
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Meta definida com sucesso!` });
+      } catch (error) {
+        console.error('Erro detalhado:', error);
+        await sock.sendMessage(GRUPO_ID, { 
+          text: `❌ Falha: ${error.response?.data?.error || error.message}`
+        });
+      }
+      return;
+    }
+
+    // Comando para registrar entrada
+    if (texto.startsWith('entrada')) {
+      const partes = texto.split(' ');
+      if (partes.length < 2) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: entrada [valor]" });
+        return;
+      }
+
+      const valor = partes[1];
+
+      try {
+        const response = await axios.post(`${WEB_APP_URL}?action=registrarEntrada`, {
+          valor: valor
+        });
+
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada registrada com sucesso!` });
+      } catch (error) {
+        console.error('Erro detalhado:', error);
+        await sock.sendMessage(GRUPO_ID, { 
+          text: `❌ Falha: ${error.response?.data?.error || error.message}`
+        });
+      }
+      return;
+    }
+
+    // Comando para registrar saída
+    if (texto.startsWith('saída')) {
+      const partes = texto.split(' ');
+      if (partes.length < 2) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: saída [valor]" });
+        return;
+      }
+
+      const valor = partes[1];
+
+      try {
+        const response = await axios.post(`${WEB_APP_URL}?action=registrarSaida`, {
+          valor: valor
+        });
+
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Saída registrada com sucesso!` });
+      } catch (error) {
+        console.error('Erro detalhado:', error);
+        await sock.sendMessage(GRUPO_ID, { 
+          text: `❌ Falha: ${error.response?.data?.error || error.message}`
+        });
+      }
+      return;
+    }
+
     // Outros comandos...
-    // Adicione aqui a lógica para os outros comandos (resumo, meta, entrada, saída, etc.)
+    // Adicione aqui a lógica para os outros comandos (média, histórico, relatório, etc.)
   });
 
   console.log("Bot iniciado!");

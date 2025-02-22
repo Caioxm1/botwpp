@@ -8,7 +8,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCWsOfUD9t7o0PmzUu1QwmvaicsxqBx_9Vdz8grO8b5dhmA03gC_CBc_DICDUgKsyiiw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwB_osICvsaWmbhaUG0vRcXPoDuqitlz-0yr9t4ltDh8__hvBmMeFJ68pcSXJNqehgpIw/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });

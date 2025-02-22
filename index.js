@@ -47,8 +47,29 @@ async function gerarGrafico(tipo, dados) {
 
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const sock = makeWASocket({ auth: state });
+  const sock = makeWASocket({ 
+    auth: state,
+    printQRInTerminal: true // Exibe o QR Code no terminal
+  });
+
   sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, qr } = update;
+
+    // Exibe o QR Code no terminal
+    if (qr) {
+      console.log('Escaneie o QR Code abaixo para autenticar o bot:');
+      console.log(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`);
+    }
+
+    if (connection === 'open') {
+      console.log('Bot conectado ao WhatsApp!');
+    } else if (connection === 'close') {
+      console.log('Conexão fechada, tentando reconectar...');
+      setTimeout(iniciarBot, 5000);
+    }
+  });
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];

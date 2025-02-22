@@ -8,11 +8,12 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.13",
-    "axios": "^1.7.9",
-    "chartjs-node-canvas": "^4.1.6",
-    "express": "^4.21.2",
-    "node-cron": "^3.0.3",
-    "ws": "^8.18.0"
+    "@whiskeysockets/baileys": "^6.7.13", // Biblioteca para conectar ao WhatsApp
+    "axios": "^1.7.9", // Para fazer requisições HTTP
+    "express": "^4.21.2", // Para criar o servidor HTTP
+    "ws": "^8.16.0", // Para WebSocket (usado para exibir o QR code)
+    "node-cron": "^3.0.2", // Para agendar tarefas (resumos automáticos)
+    "chart.js": "^3.9.1", // Biblioteca de gráficos
+    "chartjs-node-canvas": "^4.1.6" // Para gerar gráficos como imagens
   }
 }

@@ -8,49 +8,68 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw14TYv7EChhOn8rl43PgP6xwSD1gmSAlrdbDwYDLcTGlDK6THJK6-f9C7Szkr0ZE2VBA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCWsOfUD9t7o0PmzUu1QwmvaicsxqBx_9Vdz8grO8b5dhmA03gC_CBc_DICDUgKsyiiw/exec';
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 const wss = new WebSocket.Server({ port: 8080 });
 let sock;
 
-// Função para gerar gráficos
-async function gerarGrafico(tipo, dados) {
-  const width = 800; // Largura do gráfico
-  const height = 600; // Altura do gráfico
-  const backgroundColour = 'white'; // Cor de fundo
+// Função para gerar gráfico e salvar como imagem
+async function gerarGrafico(dados, periodo) {
+  console.log("Dados recebidos para gerar gráfico:", dados); // Log para depuração
 
-  const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height, backgroundColour });
+  if (!dados || !dados.labels || !dados.valores) {
+    throw new Error("Dados inválidos para gerar gráfico.");
+  }
+
+  const width = 800; // Largura da imagem
+  const height = 400; // Altura da imagem
+  const chartJSNodeCanvas = new ChartJSNodeCanvas({ width, height });
 
   const configuration = {
-    type: tipo, // Tipo de gráfico (bar, line, pie, etc.)
+    type: 'bar',
     data: {
-      labels: dados.labels, // Rótulos do gráfico
+      labels: dados.labels,
       datasets: [{
-        label: dados.label, // Legenda do gráfico
-        data: dados.valores, // Valores do gráfico
-        backgroundColor: dados.cores, // Cores das barras/fatias
-        borderColor: dados.bordas, // Cores das bordas
-        borderWidth: 2, // Espessura da borda
-      }]
+        label: `Valores (${periodo})`,
+        data: dados.valores,
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1,
+      }],
     },
     options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'top',
+      scales: {
+        y: {
+          beginAtZero: true,
         },
-        title: {
-          display: true,
-          text: dados.titulo, // Título do gráfico
-        }
-      }
-    }
+      },
+    },
   };
 
-  // Gera a imagem do gráfico
-  const image = await chartJSNodeCanvas.renderToBuffer(configuration);
-  return image;
+  try {
+    const image = await chartJSNodeCanvas.renderToBuffer(configuration);
+    console.log("Gráfico gerado com sucesso!"); // Log para depuração
+    return image;
+  } catch (error) {
+    console.error("Erro ao gerar gráfico:", error); // Log para depuração
+    throw new Error("Erro ao gerar gráfico.");
+  }
+}
+
+// Função para obter dados da planilha
+async function obterDadosGrafico(periodo) {
+  const url = `${WEB_APP_URL}?action=dadosGrafico&periodo=${periodo}`;
+  console.log("URL da API:", url); // Log para depuração
+
+  try {
+    const resposta = await axios.get(url);
+    console.log("Dados recebidos da API:", resposta.data); // Log para depuração
+    return resposta.data;
+  } catch (error) {
+    console.error("Erro ao obter dados do gráfico:", error);
+    return null;
+  }
 }
 
 async function iniciarBot() {
@@ -87,7 +106,7 @@ async function iniciarBot() {
     const remetente = msg.pushName || msg.key.participant;
 
     // Comando de ajuda
-    if (["ajuda", "help", "comandos", "comando"].includes(texto)) {
+    if (texto === "ajuda") {
       const mensagemAjuda = `📝 *Comandos Disponíveis* 📝\n
       • "resumo" - Mostra o resumo financeiro completo\n
       • "meta" - Exibe detalhes da meta atual\n
@@ -95,49 +114,77 @@ async function iniciarBot() {
       • "entrada [valor]" - Registra uma entrada\n
       • "saída [valor]" - Registra uma saída\n
       • "média" - Mostra a média das entradas\n
-      • "historico [dias]" - Mostra o histórico de transações\n
-      • "relatorio [dataInicio] [dataFim]" - Gera um relatório personalizado\n
-      • "dividir [valor] [pessoas]" - Divide despesas\n
-      • "converter [valor] [moedaOrigem] [moedaDestino]" - Converte moedas\n
-      • "investir [valor] [taxa] [tempo]" - Simula investimentos\n
-      • "analise" - Gera análise de gastos\n
-      • "recorrente adicionar [valor] [descrição] [frequência]" - Adiciona despesa recorrente\n
-      • "recorrente listar" - Lista despesas recorrentes\n
-      • "orcamento definir [categoria] [valor]" - Define orçamento\n
-      • "divida adicionar [valor] [credor] [data]" - Adiciona dívida\n
-      • "alerta gasto [percentual]" - Configura alerta de gastos\n
-      • "grafico [tipo]" - Gera gráfico financeiro\n
+      • "gráfico semanal" - Envia um gráfico semanal\n
+      • "gráfico mensal" - Envia um gráfico mensal\n
       • "ajuda" - Exibe esta mensagem`;
       await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       return;
     }
 
-    // Comando para gráficos
-    if (["grafico", "gráfico", "GRAFICO", "GRÁFICO"].includes(texto.toLowerCase())) {
-      const tipoGrafico = texto.split(" ")[1]; // Tipo de gráfico (bar, line, pie, etc.)
-      const tipoDados = texto.split(" ")[2]; // Entrada ou Saída
+    // Comando de gráfico semanal
+    if (texto === "gráfico semanal" || texto === "grafico semanal") {
       try {
-        // Busca os dados da planilha
-        const resposta = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}`);
-        const dados = resposta.data;
+        const dados = await obterDadosGrafico('semanal');
+        if (!dados) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar gráfico semanal." });
+          return;
+        }
 
-        // Gera o gráfico
-        const image = await gerarGrafico(tipoGrafico, dados);
-
-        // Envia a imagem do gráfico no WhatsApp
-        await sock.sendMessage(GRUPO_ID, { image: image, caption: `📊 Gráfico de ${tipoDados}` });
+        const imagem = await gerarGrafico(dados, 'Semanal');
+        await sock.sendMessage(GRUPO_ID, { image: imagem, caption: "📊 Gráfico Semanal" });
       } catch (error) {
-        console.error("Erro ao gerar gráfico:", error);
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar gráfico." });
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar gráfico semanal." });
       }
       return;
     }
 
-    // Outros comandos...
+    // Comando de gráfico mensal
+    if (texto === "gráfico mensal" || texto === "grafico mensal") {
+      try {
+        const dados = await obterDadosGrafico('mensal');
+        if (!dados) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar gráfico mensal." });
+          return;
+        }
+
+        const imagem = await gerarGrafico(dados, 'Mensal');
+        await sock.sendMessage(GRUPO_ID, { image: imagem, caption: "📊 Gráfico Mensal" });
+      } catch (error) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Erro ao gerar gráfico mensal." });
+      }
+      return;
+    }
+
+    // ... (restante dos comandos existentes)
   });
 
   console.log("Bot iniciado!");
 }
+
+// Endpoint para receber notificação da meta atingida
+app.post('/meta-atingida', async (req, res) => {
+  const mensagem = req.body.mensagem;
+  if (!mensagem) {
+    return res.status(400).send("Mensagem inválida");
+  }
+
+  try {
+    await sock.sendMessage(GRUPO_ID, { text: mensagem });
+    res.status(200).send("Mensagem enviada com sucesso");
+  } catch (error) {
+    res.status(500).send("Erro ao enviar mensagem");
+  }
+});
+
+// Agendamento de mensagens automáticas
+cron.schedule('0 22 * * *', async () => { // Todos os dias às 22h
+  try {
+    const resumoDiario = await axios.get(`${WEB_APP_URL}?action=resumoDiario`);
+    await sock.sendMessage(GRUPO_ID, { text: resumoDiario.data });
+  } catch (error) {
+    console.error("Erro no resumo diário:", error);
+  }
+});
 
 // Iniciar o servidor Express e o bot
 app.listen(3000, () => console.log("Servidor rodando na porta 3000"));

@@ -7,7 +7,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzJPqapx41PYjjHfrYZMAEqXYrqPeRk4t_xtandH53WGYZhHoGh-IjOE7DJDpsukWKOzw/exec'; // Substitua pela URL do seu Google Apps Script
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyyKzgiaWp6kWWo5VK31G_YVhF5vu850g3l-DmnXKJlrEendj-srLcG04uVa9mO-NzDSg/exec'; // Substitua pela URL do seu Google Apps Script
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 // Configuração do gráfico
@@ -111,7 +111,7 @@ async function iniciarBot() {
       • "orcamento definir [categoria] [valor]" - Define orçamento\n
       • "divida adicionar [valor] [credor] [data]" - Adiciona dívida\n
       • "alerta gasto [percentual]" - Configura alerta de gastos\n
-      • "grafico [tipo] [dados]" - Gera gráfico financeiro\n
+      • "grafico [tipo] [dados] [periodo]" - Gera gráfico financeiro\n
       • "ajuda" - Exibe esta mensagem`;
       await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       return;
@@ -120,13 +120,14 @@ async function iniciarBot() {
     // Comando para gráficos
     if (texto.startsWith('grafico')) {
       const partes = texto.split(' ');
-      if (partes.length < 3) return;
+      if (partes.length < 4) return;
 
-      const tipoGrafico = partes[1]; // bar, line, pie
+      const tipoGrafico = partes[1]; // bar, line
       const tipoDados = partes[2].toLowerCase(); // entrada, saida, ambos
+      const periodo = partes[3].toLowerCase(); // diario, semanal, mensal
 
       try {
-        const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}`, {
+        const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`, {
           timeout: 15000
         });
 
@@ -138,7 +139,7 @@ async function iniciarBot() {
         const image = await gerarGrafico(tipoGrafico, response.data);
         await sock.sendMessage(GRUPO_ID, { 
           image: image, 
-          caption: `📊 ${response.data.titulo}\n🔢 Registros: ${response.data.labels.length}`
+          caption: `📊 ${response.data.titulo}\n📅 Período: ${periodo}`
         });
 
       } catch (error) {
@@ -156,6 +157,13 @@ async function iniciarBot() {
 
   console.log("Bot iniciado!");
 }
+
+// Endpoint para receber mensagens do Google Apps Script
+app.post('/enviar-mensagem', async (req, res) => {
+  const { mensagem } = req.body;
+  await sock.sendMessage(GRUPO_ID, { text: mensagem });
+  res.status(200).send("Mensagem enviada com sucesso!");
+});
 
 // Iniciar o servidor Express e o bot
 app.listen(3000, () => console.log("Servidor rodando na porta 3000"));

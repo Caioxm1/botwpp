@@ -7,7 +7,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwwZ72y-oJvCp4aMeok7HYKVJ_eZxajzT2Oly7_9RoEqIJHI2b7UVJNEUNpRMel8azTPA/exec'; // Substitua pela URL do seu Google Apps Script
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxx45TTfbJ-IF3UoSOaxZRdbj-cn_BC8rzGDe2rA5ZnVgvk-M3MFEEoiRq5va714cg4/exec'; // Substitua pela URL do seu Google Apps Script
 const GRUPO_ID = '120363403512588677@g.us'; // ID do grupo do WhatsApp
 
 // Configuração do gráfico
@@ -26,18 +26,29 @@ async function gerarGrafico(tipo, dados) {
     type: tipo,
     data: {
       labels: dados.labels,
-      datasets: [{
-        label: dados.label,
-        data: dados.valores,
-        backgroundColor: dados.cores,
-        borderColor: dados.bordas,
-        borderWidth: 2
-      }]
+      datasets: dados.datasets // Agora recebe múltiplos datasets
     },
     options: {
       responsive: true,
       plugins: {
-        title: { display: true, text: dados.titulo }
+        title: { 
+          display: true, 
+          text: dados.titulo,
+          font: { size: 18 }
+        },
+        legend: {
+          position: 'top'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return 'R$ ' + value.toFixed(2);
+            }
+          }
+        }
       }
     }
   };
@@ -127,7 +138,7 @@ async function iniciarBot() {
         const image = await gerarGrafico(tipoGrafico, response.data);
         await sock.sendMessage(GRUPO_ID, { 
           image: image, 
-          caption: `📊 ${response.data.titulo}\n🔢 Registros: ${response.data.valores.length}`
+          caption: `📊 ${response.data.titulo}\n🔢 Registros: ${response.data.labels.length}`
         });
 
       } catch (error) {

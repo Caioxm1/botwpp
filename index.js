@@ -80,13 +80,39 @@ async function iniciarBot() {
 
     console.log(`Comando recebido: ${texto}`);
 
-    // Comando de gráfico
+    // Comando de ajuda
+    if (["ajuda", "help", "comandos", "comando"].includes(texto)) {
+      const mensagemAjuda = `📝 *Comandos Disponíveis* 📝\n
+      • "resumo" - Mostra o resumo financeiro completo\n
+      • "meta" - Exibe detalhes da meta atual\n
+      • "meta definir [valor] [dataInicio] [dataFim]" - Define uma nova meta\n
+      • "entrada [valor]" - Registra uma entrada\n
+      • "saída [valor]" - Registra uma saída\n
+      • "média" - Mostra a média das entradas\n
+      • "historico [dias]" - Mostra o histórico de transações\n
+      • "relatorio [dataInicio] [dataFim]" - Gera um relatório personalizado\n
+      • "dividir [valor] [pessoas]" - Divide despesas\n
+      • "converter [valor] [moedaOrigem] [moedaDestino]" - Converte moedas\n
+      • "investir [valor] [taxa] [tempo]" - Simula investimentos\n
+      • "analise" - Gera análise de gastos\n
+      • "recorrente adicionar [valor] [descrição] [frequência]" - Adiciona despesa recorrente\n
+      • "recorrente listar" - Lista despesas recorrentes\n
+      • "orcamento definir [categoria] [valor]" - Define orçamento\n
+      • "divida adicionar [valor] [credor] [data]" - Adiciona dívida\n
+      • "alerta gasto [percentual]" - Configura alerta de gastos\n
+      • "grafico [tipo] [dados]" - Gera gráfico financeiro\n
+      • "ajuda" - Exibe esta mensagem`;
+      await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
+      return;
+    }
+
+    // Comando para gráficos
     if (texto.startsWith('grafico')) {
       const partes = texto.split(' ');
       if (partes.length < 3) return;
 
       const tipoGrafico = partes[1]; // bar, line, pie
-      const tipoDados = partes[2].charAt(0).toUpperCase() + partes[2].slice(1).toLowerCase();
+      const tipoDados = partes[2].toLowerCase(); // entrada, saida, ambos
 
       try {
         const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}`, {
@@ -110,7 +136,11 @@ async function iniciarBot() {
           text: `❌ Falha: ${error.response?.data?.error || error.message}`
         });
       }
+      return;
     }
+
+    // Outros comandos...
+    // Adicione aqui a lógica para os outros comandos (resumo, meta, entrada, saída, etc.)
   });
 
   console.log("Bot iniciado!");

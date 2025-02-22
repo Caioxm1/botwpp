@@ -97,8 +97,8 @@ async function iniciarBot() {
       • "resumo" - Mostra o resumo financeiro completo\n
       • "meta" - Exibe detalhes da meta atual\n
       • "meta definir [valor] [dataInicio] [dataFim]" - Define uma nova meta\n
-      • "entrada [valor]" - Registra uma entrada\n
-      • "saída [valor]" - Registra uma saída\n
+      • "entrada [valor] [descrição]" - Registra uma entrada\n
+      • "saída [valor] [descrição]" - Registra uma saída\n
       • "média" - Mostra a média das entradas\n
       • "historico [dias]" - Mostra o histórico de transações\n
       • "relatorio [dataInicio] [dataFim]" - Gera um relatório personalizado\n
@@ -219,19 +219,22 @@ async function iniciarBot() {
     // Comando para registrar entrada
     if (texto.startsWith('entrada')) {
       const partes = texto.split(' ');
-      if (partes.length < 2) {
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: entrada [valor]" });
+      if (partes.length < 3) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: entrada [valor] [descrição]" });
         return;
       }
 
       const valor = partes[1];
+      const descricao = partes.slice(2).join(' ');
 
       try {
         const response = await axios.post(`${WEB_APP_URL}?action=registrarEntrada`, {
-          valor: valor
+          valor: valor,
+          descricao: descricao,
+          remetente: msg.pushName // Adiciona o nome do usuário
         });
 
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada registrada com sucesso!` });
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada registrada com sucesso por ${msg.pushName}: ${descricao} - R$${valor}` });
       } catch (error) {
         console.error('Erro detalhado:', error);
         await sock.sendMessage(GRUPO_ID, { 
@@ -244,19 +247,81 @@ async function iniciarBot() {
     // Comando para registrar saída
     if (texto.startsWith('saída')) {
       const partes = texto.split(' ');
-      if (partes.length < 2) {
-        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: saída [valor]" });
+      if (partes.length < 3) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: saída [valor] [descrição]" });
         return;
       }
 
       const valor = partes[1];
+      const descricao = partes.slice(2).join(' ');
 
       try {
         const response = await axios.post(`${WEB_APP_URL}?action=registrarSaida`, {
-          valor: valor
+          valor: valor,
+          descricao: descricao,
+          remetente: msg.pushName // Adiciona o nome do usuário
         });
 
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Saída registrada com sucesso!` });
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Saída registrada com sucesso por ${msg.pushName}: ${descricao} - R$${valor}` });
+      } catch (error) {
+        console.error('Erro detalhado:', error);
+        await sock.sendMessage(GRUPO_ID, { 
+          text: `❌ Falha: ${error.response?.data?.error || error.message}`
+        });
+      }
+      return;
+    }
+
+    // Comando para histórico de transações
+    if (texto.startsWith('historico')) {
+      const partes = texto.split(' ');
+      const periodo = partes[1] ? parseInt(partes[1]) : 7; // Padrão: últimos 7 dias
+
+      try {
+        const response = await axios.get(`${WEB_APP_URL}?action=historico&periodo=${periodo}`);
+        const historico = response.data;
+
+        let mensagem = `📜 Histórico dos últimos ${periodo} dias:\n`;
+        historico.forEach(transacao => {
+          const tipo = transacao[1] === "Entrada" ? "✅" : "❌";
+          mensagem += `${tipo} ${transacao[1]}: R$${transacao[2]} - ${transacao[3]} (${transacao[0]})\n`;
+        });
+
+        await sock.sendMessage(GRUPO_ID, { text: mensagem });
+      } catch (error) {
+        console.error('Erro detalhado:', error);
+        await sock.sendMessage(GRUPO_ID, { 
+          text: `❌ Falha: ${error.response?.data?.error || error.message}`
+        });
+      }
+      return;
+    }
+
+    // Comando para relatório personalizado
+    if (texto.startsWith('relatorio')) {
+      const partes = texto.split(' ');
+      if (partes.length < 3) {
+        await sock.sendMessage(GRUPO_ID, { text: "⚠️ Formato incorreto. Use: relatorio [dataInicio] [dataFim]" });
+        return;
+      }
+
+      const dataInicio = partes[1];
+      const dataFim = partes[2];
+
+      try {
+        const response = await axios.get(`${WEB_APP_URL}?action=relatorio&dataInicio=${dataInicio}&dataFim=${dataFim}`);
+        const relatorio = response.data;
+
+        const mensagem = `📊 Relatório de ${dataInicio} a ${dataFim}:\n
+        ✅ Total de entradas: R$${relatorio.entrada}\n
+        ❌ Total de saídas: R$${relatorio.saida}\n
+        📌 Categorias mais gastas:\n
+        1. Alimentação: R$${relatorio.categorias[0]}\n
+        2. Contas Fixas: R$${relatorio.categorias[1]}\n
+        3. Lazer: R$${relatorio.categorias[2]}\n
+        💰 Saldo final: R$${relatorio.saldo}`;
+
+        await sock.sendMessage(GRUPO_ID, { text: mensagem });
       } catch (error) {
         console.error('Erro detalhado:', error);
         await sock.sendMessage(GRUPO_ID, { 
@@ -267,7 +332,7 @@ async function iniciarBot() {
     }
 
     // Outros comandos...
-    // Adicione aqui a lógica para os outros comandos (média, histórico, relatório, etc.)
+    // Adicione aqui a lógica para os outros comandos (média, dividir, converter, investir, etc.)
   });
 
   console.log("Bot iniciado!");

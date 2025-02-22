@@ -8,7 +8,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw0c_fcCboyB7V4ra2K6yNRroCeTTBun5UjxwvwRZwQaUIt81aIeHg8_BhWCv9MWn1gxQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzCTdnJc4aZ6vaj52jWR3omd2p8UEIjUjCvyCegk6o-Ck5gBH4zB4C6Kv4a5btrlo2wBA/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });

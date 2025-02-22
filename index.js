@@ -1,14 +1,13 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
-const WebSocket = require('ws');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxrjEcqhUFs5hWVacEMSJ_--i2RPTGAJuBMGc8cBPrwbiezkg4aoAFvzMwtx3SYNw1oUQ/exec';
-const GRUPO_ID = '120363403512588677@g.us';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxrjEcqhUFs5hWVacEMSJ_--i2RPTGAJuBMGc8cBPrwbiezkg4aoAFvzMwtx3SYNw1oUQ/exec'; // Substitua pela URL do seu Google Apps Script
+const GRUPO_ID = '120363403512588677@g.us'; // Substitua pelo ID do seu grupo do WhatsApp
 
 // Configuração do gráfico
 const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: 800, height: 600, backgroundColour: 'white' });
@@ -18,21 +17,69 @@ function normalizarTexto(texto) {
   return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+// Gerar gráfico
 async function gerarGrafico(tipo, dados) {
   const configuration = {
     type: tipo,
-    data: { labels: dados.labels, datasets: dados.datasets },
-    options: { /* ... (igual ao anterior) ... */ }
+    data: {
+      labels: dados.labels,
+      datasets: dados.datasets
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        title: {
+          display: true,
+          text: dados.titulo,
+          font: { size: 18 }
+        },
+        legend: {
+          position: 'top'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function (value) {
+              return 'R$ ' + value.toFixed(2);
+            }
+          }
+        }
+      }
+    }
   };
   return chartJSNodeCanvas.renderToBuffer(configuration);
 }
 
+// Iniciar o bot
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const sock = makeWASocket({ auth: state, printQRInTerminal: true });
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: false, // Desativa o QR Code no terminal (para forçar o link)
+  });
 
   sock.ev.on('creds.update', saveCreds);
-  sock.ev.on('connection.update', (update) => { /* ... (igual ao anterior) ... */ });
+
+  sock.ev.on('connection.update', (update) => {
+    const { connection, qr } = update;
+
+    // Exibe o link do QR Code sempre que disponível
+    if (qr) {
+      const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
+      console.log('\n=== QR CODE PARA AUTENTICAÇÃO ===');
+      console.log(qrLink); // Link clicável (se o terminal permitir)
+      console.log('==================================\n');
+    }
+
+    if (connection === 'open') {
+      console.log('✅ Conectado ao WhatsApp!');
+    } else if (connection === 'close') {
+      console.log('⚠️ Conexão perdida. Reconectando...');
+      setTimeout(iniciarBot, 5000);
+    }
+  });
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
@@ -99,16 +146,38 @@ async function iniciarBot() {
         return;
       }
 
-      // Demais comandos (adicionar lógica similar)
-      // ...
+      // Comando: Gráfico
+      if (texto.match(/grafico|graph/)) {
+        const partes = texto.split(' ');
+        if (partes.length < 3) return;
+
+        const tipoGrafico = partes[1]; // bar, line
+        const tipoDados = partes[2].toLowerCase(); // entrada, saida, ambos
+        const periodo = partes[3] ? partes[3].toLowerCase() : "todos"; // diario, semanal, mensal, ou todos
+
+        const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`);
+        if (!response.data.labels || response.data.labels.length === 0) {
+          await sock.sendMessage(GRUPO_ID, { text: "⚠️ Nenhum dado encontrado para o período!" });
+          return;
+        }
+
+        const image = await gerarGrafico(tipoGrafico, response.data);
+        await sock.sendMessage(GRUPO_ID, {
+          image: image,
+          caption: `📊 ${response.data.titulo}\n📅 Período: ${periodo}`
+        });
+        return;
+      }
+
+      // Comando não reconhecido
+      await sock.sendMessage(GRUPO_ID, { text: "❌ Comando não reconhecido. Digite 'ajuda' para ver os comandos disponíveis." });
 
     } catch (error) {
       await sock.sendMessage(GRUPO_ID, { text: `❌ Erro: ${error.response?.data?.erro || error.message}` });
     }
   });
-
-  // Restante do código (servidor Express, etc.)
 }
 
+// Iniciar o servidor Express e o bot
 app.listen(3000, () => console.log("Servidor rodando na porta 3000"));
 iniciarBot();

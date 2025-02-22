@@ -81,12 +81,31 @@ async function iniciarBot() {
     }
   });
 
+  // Controle de taxa (rate limiting)
+  const rateLimit = new Map(); // Armazena o tempo da última mensagem por usuário
+
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message || !msg.key.remoteJid.includes(GRUPO_ID)) return;
 
     const textoBruto = msg.message.conversation || '';
     const texto = normalizarTexto(textoBruto);
+
+    // Verifica se a mensagem está vazia ou duplicada
+    if (!texto || texto === '') return;
+
+    // Verifica o rate limiting
+    const userId = msg.key.remoteJid;
+    const now = Date.now();
+    const lastMessageTime = rateLimit.get(userId) || 0;
+
+    if (now - lastMessageTime < 2000) { // Limite de 1 mensagem a cada 2 segundos
+      console.log(`⚠️ Rate limit excedido para o usuário ${userId}`);
+      return;
+    }
+
+    rateLimit.set(userId, now); // Atualiza o tempo da última mensagem
+
     console.log(`Comando recebido: ${texto}`);
 
     try {

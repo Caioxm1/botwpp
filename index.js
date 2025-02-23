@@ -8,7 +8,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbydduzLgd-RfJxdvlyIgIAxZ2FllD_dZShD1Ooj-1NlWsB_mibDrJ37OshAXSS13rZYMA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwZuk_5bVuJmTyuLemNfXQfEFFfXd_yiME8KK_3vBl4C1GZjJBkeqEMOWhOm9vppW6I1w/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -72,7 +72,7 @@ async function iniciarBot() {
     try {
       // Comando de ajuda
       if (texto === 'ajuda') {
-        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome da categoria]\n• listar categorias\n• adicionar lembrete [descrição] [valor] [data]`;
+        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome da categoria]\n• listar categorias\n• adicionar lembrete [descrição] [valor] [data] [horário]`;
         await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       }
 
@@ -160,21 +160,24 @@ async function iniciarBot() {
       // Novo comando para adicionar lembrete
       else if (texto.startsWith('adicionar lembrete')) {
         const partes = texto.split(' ');
-        if (partes.length < 4) throw new Error("Formato: adicionar lembrete [descrição] [valor] [data]");
+        if (partes.length < 5) throw new Error("Formato: adicionar lembrete [descrição] [valor] [data] [horário]");
 
-        const descricao = partes.slice(2, -2).join(' '); // Pega a descrição
-        const valor = partes[partes.length - 2]; // Pega o valor
-        const data = partes[partes.length - 1]; // Pega a data
+        const descricao = partes.slice(2, -3).join(' '); // Pega a descrição
+        const valor = partes[partes.length - 3]; // Pega o valor
+        const data = partes[partes.length - 2]; // Pega a data
+        const horario = partes[partes.length - 1]; // Pega o horário
+
+        const dataHora = `${data} ${horario}`;
 
         await axios.post(WEB_APP_URL, {
           action: "adicionarLembrete",
           descricao: descricao,
           valor: valor,
-          data: data,
+          dataHora: dataHora,
           remetente: remetente
         });
 
-        await sock.sendMessage(GRUPO_ID, { text: `🔔 Lembrete salvo: "${descricao} - R$ ${valor}" para ${data}` });
+        await sock.sendMessage(GRUPO_ID, { text: `🔔 Lembrete salvo: "${descricao} - R$ ${valor}" para ${dataHora}` });
       }
 
     } catch (error) {
@@ -183,8 +186,24 @@ async function iniciarBot() {
   });
 }
 
+// Função para verificar lembretes pendentes
+async function verificarLembretes() {
+  try {
+    const response = await axios.get(`${WEB_APP_URL}?action=verificarLembretes`);
+    const lembretes = response.data.lembretes;
+
+    for (const lembrete of lembretes) {
+      await sock.sendMessage(GRUPO_ID, { text: `📌 Lembrete: Hoje vence "${lembrete.descricao} - R$ ${lembrete.valor}".` });
+    }
+  } catch (error) {
+    console.error("Erro ao verificar lembretes:", error);
+  }
+}
+
+// Agendamento para verificar lembretes todos os dias às 9h
+cron.schedule('0 9 * * *', verificarLembretes);
+
 // Agendamentos e servidor (mantidos originais)
 app.post('/meta-atingida', async (req, res) => { /* ... */ });
-cron.schedule('0 22 * * *', async () => { /* ... */ });
 app.listen(3000, () => console.log("Servidor rodando!"));
 iniciarBot();

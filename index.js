@@ -85,8 +85,12 @@ async function iniciarBot() {
         const tipoDados = partes[2];
         const periodo = partes[3] || "todos";
 
+        // Busca os dados da planilha
         const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`);
-        const image = await gerarGrafico(tipoGrafico, response.data);
+        const dados = response.data;
+
+        // Gera o gráfico
+        const image = await gerarGrafico(tipoGrafico, dados);
 
         // Envia a imagem do gráfico
         await sock.sendMessage(GRUPO_ID, {

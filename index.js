@@ -8,7 +8,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx8GBi2CF3vqNppAGjSF-kRvExLWr-NiK8xBhJDwrFKdf6ZQubpzvFGQycRHuBbhlBAXw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxx3ncUFJobxJx1QvAjqMfBKu0QjDQOoK11pXsc3ZszqSVQOUejbleStlL0hGa-QInoUA/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -201,7 +201,7 @@ async function verificarLembretes() {
 }
 
 // Agendamento para verificar lembretes todos os dias às 9h
-cron.schedule('0 5 * * *', verificarLembretes);
+cron.schedule('0 9 * * *', verificarLembretes);
 
 // Agendamentos e servidor (mantidos originais)
 app.post('/meta-atingida', async (req, res) => { /* ... */ });

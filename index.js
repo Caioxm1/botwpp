@@ -14,13 +14,14 @@ const GRUPO_ID = '120363403512588677@g.us';
 const wss = new WebSocket.Server({ port: 8080 });
 let sock;
 
-// Configuração do gráfico
+// Configuração do gráfico (substituída pela do primeiro bot)
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
   width: 800,
   height: 600,
   backgroundColour: 'white'
 });
 
+// Função gerarGrafico do primeiro bot (substituída)
 async function gerarGrafico(tipo, dados) {
   const configuration = {
     type: tipo,
@@ -72,11 +73,11 @@ async function iniciarBot() {
     try {
       // Comando de ajuda
       if (texto === 'ajuda') {
-        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]`;
+        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• historico [7d|30d|dataInicio dataFim]\n• categoria adicionar [nome]\n• categoria listar\n• relatorio [dataInicio dataFim]\n• lembrete adicionar [descricao] [valor] [data]\n• dividir [valor] [pessoas]\n• converter [valor] [moedaOrigem] [moedaDestino]\n• investir [valor] [rendimento] [meses]\n• analise\n• orcamento definir [categoria] [valor]\n• orcamento verificar [categoria]`;
         await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       }
 
-      // Comando de gráfico
+      // Comando de gráfico (substituído pelo do primeiro bot)
       else if (texto.startsWith('grafico')) {
         const partes = texto.split(' ');
         if (partes.length < 3) throw new Error("Formato: grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]");
@@ -131,8 +132,108 @@ async function iniciarBot() {
 
       // Comando para média de entradas
       else if (texto === 'média') {
-        const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
-        await sock.sendMessage(GRUPO_ID, { text: media.data });
+        const response = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
+        await sock.sendMessage(GRUPO_ID, { text: response.data });
+      }
+
+      // Comando para histórico de transações
+      else if (texto.startsWith('historico')) {
+        const periodo = texto.split(' ')[1] || "30d"; // Padrão: últimos 30 dias
+        const response = await axios.get(`${WEB_APP_URL}?action=historico&periodo=${periodo}`);
+        const transacoes = response.data;
+
+        let mensagem = `📜 Histórico dos últimos ${periodo}:\n`;
+        transacoes.forEach(transacao => {
+          mensagem += `${transacao[1] === "Entrada" ? "✅" : "❌"} ${transacao[1]}: R$ ${transacao[2].toFixed(2)} - ${transacao[3]} (${transacao[0]})\n`;
+        });
+
+        await sock.sendMessage(GRUPO_ID, { text: mensagem });
+      }
+
+      // Comando para adicionar categoria
+      else if (texto.startsWith('categoria adicionar')) {
+        const categoria = texto.split(' ').slice(2).join(' ');
+        await axios.post(WEB_APP_URL, { action: "adicionarCategoria", categoria: categoria });
+        await sock.sendMessage(GRUPO_ID, { text: `📌 Categoria "${categoria}" adicionada com sucesso.` });
+      }
+
+      // Comando para listar categorias
+      else if (texto.startsWith('categoria listar')) {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarCategorias`);
+        const categorias = response.data.map(row => row[0]).join('\n- ');
+        await sock.sendMessage(GRUPO_ID, { text: `📌 Categorias cadastradas:\n- ${categorias}` });
+      }
+
+      // Comando para relatório personalizado
+      else if (texto.startsWith('relatorio')) {
+        const [_, dataInicio, dataFim] = texto.split(' ');
+        const response = await axios.get(`${WEB_APP_URL}?action=relatorio&dataInicio=${dataInicio}&dataFim=${dataFim}`);
+        const { totalEntrada, totalSaida, transacoes } = response.data;
+
+        let mensagem = `📊 Relatório de ${dataInicio} a ${dataFim}:\n`;
+        mensagem += `✅ Total de entradas: R$ ${totalEntrada.toFixed(2)}\n`;
+        mensagem += `❌ Total de saídas: R$ ${totalSaida.toFixed(2)}\n`;
+        mensagem += `💰 Saldo final: R$ ${(totalEntrada - totalSaida).toFixed(2)}\n`;
+
+        await sock.sendMessage(GRUPO_ID, { text: mensagem });
+      }
+
+      // Comando para adicionar lembrete
+      else if (texto.startsWith('lembrete adicionar')) {
+        const [_, descricao, valor, data] = texto.split(' ');
+        lembretes.push({ descricao, valor, data });
+        await sock.sendMessage(GRUPO_ID, { text: `🔔 Lembrete salvo: "${descricao} - R$ ${valor}" para ${data}.` });
+      }
+
+      // Comando para dividir despesas
+      else if (texto.startsWith('dividir')) {
+        const [_, valor, pessoas] = texto.split(' ');
+        const valorPorPessoa = (parseFloat(valor) / parseInt(pessoas)).toFixed(2);
+        await sock.sendMessage(GRUPO_ID, { text: `💰 Divisão de despesas:\nValor total: R$ ${valor}\nNúmero de pessoas: ${pessoas}\nCada pessoa deve pagar: R$ ${valorPorPessoa}` });
+      }
+
+      // Comando para converter moedas
+      else if (texto.startsWith('converter')) {
+        const [_, valor, moedaOrigem, moedaDestino] = texto.split(' ');
+        const response = await axios.get(`https://api.exchangerate-api.com/v4/latest/${moedaOrigem}`);
+        const taxa = response.data.rates[moedaDestino];
+        const valorConvertido = (parseFloat(valor) * taxa).toFixed(2);
+        await sock.sendMessage(GRUPO_ID, { text: `💱 Conversão:\n${valor} ${moedaOrigem} = ${valorConvertido} ${moedaDestino} (cotação de hoje: 1 ${moedaOrigem} = ${taxa} ${moedaDestino})` });
+      }
+
+      // Comando para simular investimento
+      else if (texto.startsWith('investir')) {
+        const [_, valor, rendimento, meses] = texto.split(' ');
+        const valorFinal = (parseFloat(valor) * Math.pow(1 + (parseFloat(rendimento) / 100), parseInt(meses))).toFixed(2);
+        await sock.sendMessage(GRUPO_ID, { text: `📈 Simulação de investimento:\nValor inicial: R$ ${valor}\nRendimento: ${rendimento}% ao mês\nTempo: ${meses} meses\nValor final estimado: R$ ${valorFinal}` });
+      }
+
+      // Comando para análise de gastos
+      else if (texto === 'analise') {
+        const response = await axios.get(`${WEB_APP_URL}?action=analiseGastos`);
+        const gastosPorCategoria = response.data;
+
+        let mensagem = `📊 Análise de gastos:\n`;
+        for (const [categoria, valor] of Object.entries(gastosPorCategoria)) {
+          mensagem += `📌 ${categoria}: R$ ${valor.toFixed(2)}\n`;
+        }
+
+        await sock.sendMessage(GRUPO_ID, { text: mensagem });
+      }
+
+      // Comando para definir orçamento
+      else if (texto.startsWith('orcamento definir')) {
+        const [_, categoria, valor] = texto.split(' ');
+        await axios.post(WEB_APP_URL, { action: "definirOrcamento", categoria: categoria, valor: valor });
+        await sock.sendMessage(GRUPO_ID, { text: `📌 Orçamento de R$ ${valor} definido para ${categoria}.` });
+      }
+
+      // Comando para verificar orçamento
+      else if (texto.startsWith('orcamento verificar')) {
+        const categoria = texto.split(' ')[2];
+        const response = await axios.get(`${WEB_APP_URL}?action=verificarOrcamento&categoria=${categoria}`);
+        const orcamento = response.data;
+        await sock.sendMessage(GRUPO_ID, { text: `📌 Orçamento para ${categoria}: R$ ${orcamento[1]}` });
       }
 
     } catch (error) {
@@ -141,8 +242,27 @@ async function iniciarBot() {
   });
 }
 
-// Agendamentos e servidor (mantidos originais)
-app.post('/meta-atingida', async (req, res) => { /* ... */ });
-cron.schedule('0 22 * * *', async () => { /* ... */ });
+// Agendamentos e servidor
+const lembretes = [];
+
+cron.schedule('0 9 * * *', () => {
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  lembretes.forEach(lembrete => {
+    if (lembrete.data === hoje) {
+      sock.sendMessage(GRUPO_ID, { text: `📌 Lembrete: Hoje vence "${lembrete.descricao} - R$ ${lembrete.valor}".` });
+    }
+  });
+});
+
+cron.schedule('0 0 1 * *', async () => {
+  const response = await axios.get(`${WEB_APP_URL}?action=getDespesasRecorrentes`);
+  const despesasRecorrentes = response.data;
+
+  despesasRecorrentes.forEach(despesa => {
+    const [descricao, valor] = despesa;
+    axios.post(WEB_APP_URL, { tipo: "Saída", valor: valor, remetente: "Sistema", descricao: descricao });
+  });
+});
+
 app.listen(3000, () => console.log("Servidor rodando!"));
 iniciarBot();

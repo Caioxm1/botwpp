@@ -8,7 +8,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxUaze1jALPT0C9y5GksSsiGQUkH5XePwb5ATA_L2zrXcznwZSbvhx3pK1wFYPOgF4Yww/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbye53pnkT8TSHwL-3xfmOc7grAnBdiKRhZsMheyk5SZVRpVJdBb9PwsvNhgeJO-ZRDtsg/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -131,8 +131,8 @@ async function iniciarBot() {
 
       // Comando para média de entradas
       else if (texto === 'média') {
-        const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
-        await sock.sendMessage(GRUPO_ID, { text: media.data });
+        const response = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
+        await sock.sendMessage(GRUPO_ID, { text: response.data });
       }
 
       // Comando para histórico de transações

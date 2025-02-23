@@ -8,7 +8,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwnMCQOx09n2tkh7s_iEfKFMW_clqPXCF0Zt4AS3fOW52wExMuNxSOukmdxTnxTKniSBA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxUaze1jALPT0C9y5GksSsiGQUkH5XePwb5ATA_L2zrXcznwZSbvhx3pK1wFYPOgF4Yww/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });

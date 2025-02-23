@@ -87,7 +87,12 @@ async function iniciarBot() {
 
         const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`);
         const image = await gerarGrafico(tipoGrafico, response.data);
-        await sock.sendMessage(GRUPO_ID, { image: image, caption: `📊 ${response.data.titulo}` });
+
+        // Envia a imagem do gráfico
+        await sock.sendMessage(GRUPO_ID, {
+          image: image,
+          caption: `📊 Gráfico de ${tipoDados} (${periodo})`
+        });
       }
 
       // Comando para resumo financeiro

@@ -8,7 +8,7 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw-7QkXgLQfvwnfMKY62n9VXWAjud_urOrx8EhMGEN0oN-Kp0VFmxh7hyWw4mpn5lj4qw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwDtUSYMLp2ak5dKtWmu6fGkEdRvbO1b8qzIqYTc22dYIu0dWW6-_BESIfZUVmnW7Z_eA/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const wss = new WebSocket.Server({ port: 8080 });
@@ -72,7 +72,7 @@ async function iniciarBot() {
     try {
       // Comando de ajuda
       if (texto === 'ajuda') {
-        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome da categoria]`;
+        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome da categoria]\n• listar categorias`;
         await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       }
 
@@ -143,6 +143,18 @@ async function iniciarBot() {
         const categoria = partes.slice(2).join(' '); // Pega o nome da categoria
         await axios.post(WEB_APP_URL, { action: "adicionarCategoria", categoria: categoria });
         await sock.sendMessage(GRUPO_ID, { text: `📌 Categoria "${categoria}" adicionada com sucesso.` });
+      }
+
+      // Novo comando para listar categorias
+      else if (texto === 'listar categorias') {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarCategorias`);
+        const categorias = response.data.categorias;
+        if (categorias.length === 0) {
+          await sock.sendMessage(GRUPO_ID, { text: "📌 Nenhuma categoria cadastrada." });
+        } else {
+          const listaCategorias = categorias.map((cat, index) => `${index + 1}. ${cat}`).join('\n');
+          await sock.sendMessage(GRUPO_ID, { text: `📌 Categorias cadastradas:\n${listaCategorias}` });
+        }
       }
 
     } catch (error) {

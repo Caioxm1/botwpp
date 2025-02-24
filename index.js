@@ -72,7 +72,7 @@ async function iniciarBot() {
     try {
       // Comando de ajuda
       if (texto === 'ajuda') {
-        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome da categoria]\n• listar categorias\n• adicionar lembrete [descrição] [valor] [data] [horário]`;
+        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]`;
         await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
       }
 
@@ -131,53 +131,16 @@ async function iniciarBot() {
 
       // Comando para média de entradas
       else if (texto === 'média') {
-        const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
-        await sock.sendMessage(GRUPO_ID, { text: media.data });
-      }
-
-      // Comando para adicionar categoria
-      else if (texto.startsWith('categoria adicionar')) {
-        const partes = texto.split(' ');
-        if (partes.length < 3) throw new Error("Formato: categoria adicionar [nome da categoria]");
-
-        const categoria = partes.slice(2).join(' '); // Pega o nome da categoria
-        await axios.post(WEB_APP_URL, { action: "adicionarCategoria", categoria: categoria });
-        await sock.sendMessage(GRUPO_ID, { text: `📌 Categoria "${categoria}" adicionada com sucesso.` });
-      }
-
-      // Comando para listar categorias
-      else if (texto === 'listar categorias') {
-        const response = await axios.get(`${WEB_APP_URL}?action=listarCategorias`);
-        const categorias = response.data.categorias;
-        if (categorias.length === 0) {
-          await sock.sendMessage(GRUPO_ID, { text: "📌 Nenhuma categoria cadastrada." });
-        } else {
-          const listaCategorias = categorias.map((cat, index) => `${index + 1}. ${cat}`).join('\n');
-          await sock.sendMessage(GRUPO_ID, { text: `📌 Categorias cadastradas:\n${listaCategorias}` });
+        const dados = await axios.get(`${WEB_APP_URL}?action=resumoDiario`);
+        const entradas = dados.data.match(/💰 Entradas: R\$\d+\.\d+/g);
+        if (!entradas || entradas.length === 0) {
+          await sock.sendMessage(GRUPO_ID, { text: "📊 Nenhuma entrada registrada para calcular a média." });
+          return;
         }
-      }
 
-      // Novo comando para adicionar lembrete
-      else if (texto.startsWith('adicionar lembrete')) {
-        const partes = texto.split(' ');
-        if (partes.length < 5) throw new Error("Formato: adicionar lembrete [descrição] [valor] [data] [horário]");
-
-        const descricao = partes.slice(2, -3).join(' '); // Pega a descrição
-        const valor = partes[partes.length - 3]; // Pega o valor
-        const data = partes[partes.length - 2]; // Pega a data
-        const horario = partes[partes.length - 1]; // Pega o horário
-
-        const dataHora = `${data} ${horario}`;
-
-        await axios.post(WEB_APP_URL, {
-          action: "adicionarLembrete",
-          descricao: descricao,
-          valor: valor,
-          dataHora: dataHora,
-          remetente: remetente
-        });
-
-        await sock.sendMessage(GRUPO_ID, { text: `🔔 Lembrete salvo: "${descricao} - R$ ${valor}" para ${dataHora}` });
+        const valores = entradas.map(entrada => parseFloat(entrada.split('R$')[1]));
+        const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+        await sock.sendMessage(GRUPO_ID, { text: `📊 *Média de Entradas* 📊\n\n💰 Média: R$${media.toFixed(2)}` });
       }
 
     } catch (error) {
@@ -186,24 +149,8 @@ async function iniciarBot() {
   });
 }
 
-// Função para verificar lembretes pendentes
-async function verificarLembretes() {
-  try {
-    const response = await axios.get(`${WEB_APP_URL}?action=verificarLembretes`);
-    const lembretes = response.data.lembretes;
-
-    for (const lembrete of lembretes) {
-      await sock.sendMessage(GRUPO_ID, { text: `📌 Lembrete: Hoje vence "${lembrete.descricao} - R$ ${lembrete.valor}".` });
-    }
-  } catch (error) {
-    console.error("Erro ao verificar lembretes:", error);
-  }
-}
-
-// Agendamento para verificar lembretes todos os dias às 9h
-cron.schedule('0 9 * * *', verificarLembretes);
-
 // Agendamentos e servidor (mantidos originais)
 app.post('/meta-atingida', async (req, res) => { /* ... */ });
+cron.schedule('0 22 * * *', async () => { /* ... */ });
 app.listen(3000, () => console.log("Servidor rodando!"));
 iniciarBot();

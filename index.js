@@ -1,25 +1,24 @@
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const axios = require('axios');
 const express = require('express');
-const WebSocket = require('ws');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
-const cron = require('node-cron');
+const WebSocket = require('ws');
 
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxx3ncUFJobxJx1QvAjqMfBKu0QjDQOoK11pXsc3ZszqSVQOUejbleStlL0hGa-QInoUA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxFPX2mOTdHsrJ_znJiulgOGAt_fx-k7KtqMs5Xjorda-azK4JDRfPZ3cNFwWNAijfFwg/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
-const wss = new WebSocket.Server({ port: 8080 });
-let sock;
-
-// Configuração do gráfico
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
   width: 800,
   height: 600,
   backgroundColour: 'white'
 });
+
+const wss = new WebSocket.Server({ port: 8080 });
+
+let ultimoComandoProcessado = null;
 
 async function gerarGrafico(tipo, dados) {
   const configuration = {
@@ -42,13 +41,12 @@ async function gerarGrafico(tipo, dados) {
       }
     }
   };
-
   return chartJSNodeCanvas.renderToBuffer(configuration);
 }
 
 async function iniciarBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  sock = makeWASocket({ auth: state });
+  const sock = makeWASocket({ auth: state });
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
@@ -69,79 +67,218 @@ async function iniciarBot() {
     const texto = msg.message.conversation?.toLowerCase().trim();
     const remetente = msg.pushName || "Usuário";
 
+    if (ultimoComandoProcessado === texto) return;
+    ultimoComandoProcessado = texto;
+
     try {
-      // Comando de ajuda
+      // Comando Ajuda
       if (texto === 'ajuda') {
-        const mensagemAjuda = `📝 *Comandos Disponíveis*\n\n• resumo\n• meta definir [valor] [dataInicio] [dataFim]\n• entrada [valor]\n• saída [valor]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]`;
+        const mensagemAjuda = `📚 *Comandos Disponíveis*\n\n• resumo\n• poupança [valor]\n• entrada [valor]\n• saída [valor] [categoria]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome]\n• listar categorias\n• orçamento definir [categoria] [valor]\n• orçamento listar\n• dívida adicionar [valor] [credor] [dataVencimento]\n• dívida listar\n• lembrete adicionar [descrição] [data]\n• lembrete listar\n• historico [tipo] [categoria] [dataInicio] [dataFim]`;
         await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
+        return;
       }
 
-      // Comando de gráfico
-      else if (texto.startsWith('grafico')) {
-        const partes = texto.split(' ');
-        if (partes.length < 3) throw new Error("Formato: grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]");
+      // Comando Resumo
+      if (texto === 'resumo') {
+        const resumo = await axios.get(`${WEB_APP_URL}?action=resumo`);
+        await sock.sendMessage(GRUPO_ID, { text: resumo.data });
+        return;
+      }
 
+      // Comando Poupança
+      if (texto.startsWith('poupança')) {
+        const valor = texto.split(' ')[1];
+        if (!valor || isNaN(valor)) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "poupança [valor]".' });
+          return;
+        }
+        await axios.get(`${WEB_APP_URL}?action=adicionarPoupanca&valor=${valor}&remetente=${remetente}`);
+        await sock.sendMessage(GRUPO_ID, { text: `✅ R$ ${valor} transferidos para a poupança.` });
+        return;
+      }
+
+      // Comando Entrada
+      if (texto.startsWith('entrada')) {
+        const valor = texto.split(' ')[1];
+        if (!valor || isNaN(valor)) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "entrada [valor]".' });
+          return;
+        }
+        await axios.get(`${WEB_APP_URL}?action=entrada&valor=${valor}&remetente=${remetente}`);
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada de R$ ${valor} (salário) registrada por ${remetente}.` });
+        return;
+      }
+
+      // Comando Saída
+      if (texto.startsWith('saída')) {
+        const partes = texto.split(' ');
+        const valor = partes[1];
+        const categoria = partes[2];
+        if (!valor || isNaN(valor) || !categoria) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "saída [valor] [categoria]".' });
+          return;
+        }
+        await axios.get(`${WEB_APP_URL}?action=saída&valor=${valor}&categoria=${categoria}&remetente=${remetente}`);
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Saída de R$ ${valor} registrada na categoria "${categoria}" por ${remetente}.` });
+        return;
+      }
+
+      // Comando Média
+      if (texto === 'média') {
+        const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
+        await sock.sendMessage(GRUPO_ID, { text: media.data });
+        return;
+      }
+
+      // Comando Gráfico
+      if (texto.startsWith('grafico')) {
+        const partes = texto.split(' ');
         const tipoGrafico = partes[1];
         const tipoDados = partes[2];
         const periodo = partes[3] || "todos";
-
+        if (!tipoGrafico || !tipoDados || !['bar', 'line'].includes(tipoGrafico) || !['entrada', 'saída', 'ambos'].includes(tipoDados)) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]".' });
+          return;
+        }
         const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`);
         const image = await gerarGrafico(tipoGrafico, response.data);
         await sock.sendMessage(GRUPO_ID, { image: image, caption: `📊 ${response.data.titulo}` });
+        return;
       }
 
-      // Comando para resumo financeiro
-      else if (texto === 'resumo') {
-        const resumo = await axios.get(WEB_APP_URL);
-        await sock.sendMessage(GRUPO_ID, { text: resumo.data });
-      }
-
-      // Comando para definir meta
-      else if (texto.startsWith('meta definir')) {
-        const partes = texto.split(' ');
-        if (partes.length < 5) throw new Error("Formato: meta definir [valor] [dataInicio] [dataFim]");
-
-        const valor = partes[2];
-        const dataInicio = partes[3];
-        const dataFim = partes[4];
-
-        await axios.post(WEB_APP_URL, { action: "definirMeta", valor: valor, dataInicio: dataInicio, dataFim: dataFim });
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Meta de R$${valor} definida de ${dataInicio} até ${dataFim}.` });
-      }
-
-      // Comando para registrar entrada
-      else if (texto.startsWith('entrada')) {
-        const partes = texto.split(' ');
-        if (partes.length < 2) throw new Error("Formato: entrada [valor]");
-
-        const valor = partes[1];
-        await axios.post(WEB_APP_URL, { tipo: "Entrada", valor: valor, remetente: remetente });
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Entrada de R$${valor} registrada por ${remetente}.` });
-      }
-
-      // Comando para registrar saída
-      else if (texto.startsWith('saída')) {
-        const partes = texto.split(' ');
-        if (partes.length < 2) throw new Error("Formato: saída [valor]");
-
-        const valor = partes[1];
-        await axios.post(WEB_APP_URL, { tipo: "Saída", valor: valor, remetente: remetente });
-        await sock.sendMessage(GRUPO_ID, { text: `✅ Saída de R$${valor} registrada por ${remetente}.` });
-      }
-
-      // Comando para média de entradas
-      else if (texto === 'média') {
-        const dados = await axios.get(`${WEB_APP_URL}?action=resumoDiario`);
-        const entradas = dados.data.match(/💰 Entradas: R\$\d+\.\d+/g);
-        if (!entradas || entradas.length === 0) {
-          await sock.sendMessage(GRUPO_ID, { text: "📊 Nenhuma entrada registrada para calcular a média." });
+      // Comando Categoria Adicionar
+      if (texto.startsWith('categoria adicionar')) {
+        const categoria = texto.split(' ').slice(2).join(' ');
+        if (!categoria) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "categoria adicionar [nome]".' });
           return;
         }
-
-        const valores = entradas.map(entrada => parseFloat(entrada.split('R$')[1]));
-        const media = valores.reduce((a, b) => a + b, 0) / valores.length;
-        await sock.sendMessage(GRUPO_ID, { text: `📊 *Média de Entradas* 📊\n\n💰 Média: R$${media.toFixed(2)}` });
+        await axios.get(`${WEB_APP_URL}?action=adicionarCategoria&categoria=${categoria}`);
+        await sock.sendMessage(GRUPO_ID, { text: `📌 Categoria "${categoria}" adicionada com sucesso.` });
+        return;
       }
+
+      // Comando Listar Categorias
+      if (texto === 'listar categorias') {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarCategorias`);
+        const categorias = response.data.categorias;
+        if (categorias.length === 0) {
+          await sock.sendMessage(GRUPO_ID, { text: "📌 Nenhuma categoria cadastrada." });
+        } else {
+          const listaCategorias = categorias.map((cat, index) => `${index + 1}. ${cat}`).join('\n');
+          await sock.sendMessage(GRUPO_ID, { text: `📌 Categorias cadastradas:\n${listaCategorias}` });
+        }
+        return;
+      }
+
+      // Comando Dívida Adicionar
+      if (texto.startsWith('dívida adicionar')) {
+        const partes = texto.split(' ');
+        const valor = partes[2];
+        const credor = partes[3];
+        const dataVencimento = partes[4];
+        if (!valor || isNaN(valor) || !credor || !dataVencimento) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "dívida adicionar [valor] [credor] [dataVencimento]".' });
+          return;
+        }
+        await axios.get(`${WEB_APP_URL}?action=adicionarDivida&valor=${valor}&credor=${credor}&dataVencimento=${dataVencimento}`);
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Dívida de R$ ${valor} adicionada com ${credor}, vencendo em ${dataVencimento}.` });
+        return;
+      }
+
+      // Comando Dívida Listar
+      if (texto === 'dívida listar') {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarDividas`);
+        const dividas = response.data.dividas;
+        if (dividas.length === 0) {
+          await sock.sendMessage(GRUPO_ID, { text: "📌 Nenhuma dívida cadastrada." });
+        } else {
+          const listaDividas = dividas.map(d => `${d.id}. ${d.credor}: R$ ${d.valor.toFixed(2)} (Vencimento: ${d.vencimento})`).join('\n');
+          await sock.sendMessage(GRUPO_ID, { text: `📌 Dívidas:\n${listaDividas}` });
+        }
+        return;
+      }
+
+      // Comando Lembrete Adicionar
+      if (texto.startsWith('lembrete adicionar')) {
+        const partes = texto.split(' ');
+        const descricao = partes.slice(2, -1).join(' ');
+        const data = partes[partes.length - 1];
+        if (!descricao || !data) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "lembrete adicionar [descrição] [data]".' });
+          return;
+        }
+        await axios.get(`${WEB_APP_URL}?action=adicionarLembrete&descricao=${descricao}&data=${data}`);
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Lembrete "${descricao}" adicionado para ${data}.` });
+        return;
+      }
+
+      // Comando Lembrete Listar
+      if (texto === 'lembrete listar') {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarLembretes`);
+        const lembretes = response.data.lembretes;
+        if (lembretes.length === 0) {
+          await sock.sendMessage(GRUPO_ID, { text: "📌 Nenhum lembrete cadastrado." });
+        } else {
+          const listaLembretes = lembretes.map(l => `${l.id}. ${l.descricao} (${l.data})`).join('\n');
+          await sock.sendMessage(GRUPO_ID, { text: `📌 Lembretes:\n${listaLembretes}` });
+        }
+        return;
+      }
+
+      // Comando Orçamento Definir
+      if (texto.startsWith('orçamento definir')) {
+        const partes = texto.split(' ');
+        const categoria = partes[2];
+        const valor = partes[3];
+        if (!categoria || !valor || isNaN(valor)) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "orçamento definir [categoria] [valor]".' });
+          return;
+        }
+        await axios.get(`${WEB_APP_URL}?action=definirOrcamento&categoria=${categoria}&valor=${valor}`);
+        await sock.sendMessage(GRUPO_ID, { text: `✅ Orçamento de R$ ${valor} definido para a categoria "${categoria}".` });
+        return;
+      }
+
+      // Comando Orçamento Listar
+      if (texto === 'orçamento listar') {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
+        await sock.sendMessage(GRUPO_ID, { text: response.data });
+        return;
+      }
+
+      // Comando Histórico
+      if (texto.startsWith('historico')) {
+        const partes = texto.split(' ');
+        const tipoFiltro = partes[1] || "todos";
+        const categoriaFiltro = partes[2] || "";
+        const dataInicio = partes[3] || "";
+        const dataFim = partes[4] || "";
+
+        try {
+          const response = await axios.get(`${WEB_APP_URL}?action=historico&tipo=${tipoFiltro}&categoria=${categoriaFiltro}&dataInicio=${dataInicio}&dataFim=${dataFim}`);
+          const historico = response.data.historico;
+
+          if (historico.length === 0) {
+            await sock.sendMessage(GRUPO_ID, { text: "📌 Nenhuma transação encontrada com os filtros aplicados." });
+            return;
+          }
+
+          let mensagem = "📜 Histórico de transações:\n\n";
+          historico.forEach(transacao => {
+            const emoji = transacao.tipo.toLowerCase() === "entrada" ? "✅" : "❌";
+            mensagem += `${emoji} ${transacao.data} - ${transacao.tipo}: ${transacao.categoria} - R$ ${transacao.valor.toFixed(2)}\n`;
+          });
+
+          await sock.sendMessage(GRUPO_ID, { text: mensagem });
+          return;
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: `❌ Erro ao buscar histórico: ${error.message}` });
+        }
+      }
+
+      // Comando não reconhecido (não envia mensagem de erro)
+      return;
 
     } catch (error) {
       await sock.sendMessage(GRUPO_ID, { text: `❌ Erro: ${error.message}` });
@@ -149,8 +286,5 @@ async function iniciarBot() {
   });
 }
 
-// Agendamentos e servidor (mantidos originais)
-app.post('/meta-atingida', async (req, res) => { /* ... */ });
-cron.schedule('0 22 * * *', async () => { /* ... */ });
 app.listen(3000, () => console.log("Servidor rodando!"));
 iniciarBot();

@@ -7,7 +7,7 @@ const WebSocket = require('ws');
 const app = express();
 app.use(express.json());
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxFPX2mOTdHsrJ_znJiulgOGAt_fx-k7KtqMs5Xjorda-azK4JDRfPZ3cNFwWNAijfFwg/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyDijaIa-F4eCKNL-ad05pMYuaFsXxJDeT5ePjF68qO1g4bPMC9pMRwBEtWona1n3RV0Q/exec';
 const GRUPO_ID = '120363403512588677@g.us';
 
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
@@ -36,7 +36,7 @@ async function gerarGrafico(tipo, dados) {
       scales: {
         y: {
           beginAtZero: true,
-          ticks: { callback: (value) => 'R$ ' + value.toFixed(2) }
+          ticks: { callback: (value) => 'R$ ' + value.toFixed(2).replace(".", ",") }
         }
       }
     }
@@ -73,7 +73,7 @@ async function iniciarBot() {
     try {
       // Comando Ajuda
       if (texto === 'ajuda') {
-        const mensagemAjuda = `📚 *Comandos Disponíveis*\n\n• resumo\n• poupança [valor]\n• entrada [valor]\n• saída [valor] [categoria]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome]\n• listar categorias\n• orçamento definir [categoria] [valor]\n• orçamento listar\n• dívida adicionar [valor] [credor] [dataVencimento]\n• dívida listar\n• lembrete adicionar [descrição] [data]\n• lembrete listar\n• historico [tipo] [categoria] [dataInicio] [dataFim]`;
+        const mensagemAjuda = `📚 *Comandos Disponíveis*\n\n• resumo\n• poupança [valor]\n• entrada [valor]\n• saída [valor] [categoria]\n• média\n• grafico [bar|line] [entrada|saída|ambos] [diario|semanal|mensal]\n• categoria adicionar [nome]\n• listar categorias\n• orçamento definir [categoria] [valor]\n• orçamento listar\n• dívida adicionar [valor] [credor] [dataVencimento]\n• dívida listar\n• lembrete adicionar [descrição] [data]\n• lembrete listar\n• historico [tipo] [categoria] [dataInicio] [dataFim]\n• excluir [número(s)]\n• excluir tudo\n• excluir dia [data]\n• excluir periodo [dataInicio] [dataFim]`;
         await sock.sendMessage(GRUPO_ID, { text: mensagemAjuda });
         return;
       }
@@ -87,8 +87,8 @@ async function iniciarBot() {
 
       // Comando Poupança
       if (texto.startsWith('poupança')) {
-        const valor = texto.split(' ')[1];
-        if (!valor || isNaN(valor)) {
+        const valor = texto.split(' ')[1].replace(".", ","); // Garante que o valor use vírgula
+        if (!valor || isNaN(valor.replace(",", "."))) {
           await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "poupança [valor]".' });
           return;
         }
@@ -99,8 +99,8 @@ async function iniciarBot() {
 
       // Comando Entrada
       if (texto.startsWith('entrada')) {
-        const valor = texto.split(' ')[1];
-        if (!valor || isNaN(valor)) {
+        const valor = texto.split(' ')[1].replace(".", ","); // Garante que o valor use vírgula
+        if (!valor || isNaN(valor.replace(",", "."))) {
           await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "entrada [valor]".' });
           return;
         }
@@ -112,9 +112,9 @@ async function iniciarBot() {
       // Comando Saída
       if (texto.startsWith('saída')) {
         const partes = texto.split(' ');
-        const valor = partes[1];
+        const valor = partes[1].replace(".", ","); // Garante que o valor use vírgula
         const categoria = partes[2];
-        if (!valor || isNaN(valor) || !categoria) {
+        if (!valor || isNaN(valor.replace(",", ".")) || !categoria) {
           await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "saída [valor] [categoria]".' });
           return;
         }
@@ -174,10 +174,10 @@ async function iniciarBot() {
       // Comando Dívida Adicionar
       if (texto.startsWith('dívida adicionar')) {
         const partes = texto.split(' ');
-        const valor = partes[2];
+        const valor = partes[2].replace(".", ","); // Garante que o valor use vírgula
         const credor = partes[3];
         const dataVencimento = partes[4];
-        if (!valor || isNaN(valor) || !credor || !dataVencimento) {
+        if (!valor || isNaN(valor.replace(",", ".")) || !credor || !dataVencimento) {
           await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "dívida adicionar [valor] [credor] [dataVencimento]".' });
           return;
         }
@@ -193,7 +193,7 @@ async function iniciarBot() {
         if (dividas.length === 0) {
           await sock.sendMessage(GRUPO_ID, { text: "📌 Nenhuma dívida cadastrada." });
         } else {
-          const listaDividas = dividas.map(d => `${d.id}. ${d.credor}: R$ ${d.valor.toFixed(2)} (Vencimento: ${d.vencimento})`).join('\n');
+          const listaDividas = dividas.map(d => `${d.id}. ${d.credor}: R$ ${d.valor} (Vencimento: ${d.vencimento})`).join('\n');
           await sock.sendMessage(GRUPO_ID, { text: `📌 Dívidas:\n${listaDividas}` });
         }
         return;
@@ -230,8 +230,8 @@ async function iniciarBot() {
       if (texto.startsWith('orçamento definir')) {
         const partes = texto.split(' ');
         const categoria = partes[2];
-        const valor = partes[3];
-        if (!categoria || !valor || isNaN(valor)) {
+        const valor = partes[3].replace(".", ","); // Garante que o valor use vírgula
+        if (!categoria || !valor || isNaN(valor.replace(",", "."))) {
           await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "orçamento definir [categoria] [valor]".' });
           return;
         }
@@ -267,7 +267,7 @@ async function iniciarBot() {
           let mensagem = "📜 Histórico de transações:\n\n";
           historico.forEach(transacao => {
             const emoji = transacao.tipo.toLowerCase() === "entrada" ? "✅" : "❌";
-            mensagem += `${emoji} ${transacao.data} - ${transacao.tipo}: ${transacao.categoria} - R$ ${transacao.valor.toFixed(2)}\n`;
+            mensagem += `${transacao.id} - ${emoji} ${transacao.data} - ${transacao.tipo}: ${transacao.categoria} - R$ ${transacao.valor}\n`;
           });
 
           await sock.sendMessage(GRUPO_ID, { text: mensagem });
@@ -275,6 +275,23 @@ async function iniciarBot() {
         } catch (error) {
           await sock.sendMessage(GRUPO_ID, { text: `❌ Erro ao buscar histórico: ${error.message}` });
         }
+      }
+
+      // Comando Excluir Transação
+      if (texto.startsWith('excluir')) {
+        const parametro = texto.split(' ').slice(1).join(' ');
+        if (!parametro) {
+          await sock.sendMessage(GRUPO_ID, { text: '❌ Comando inválido. Use: "excluir [número(s)]", "excluir tudo", "excluir dia [data]", ou "excluir periodo [dataInicio] [dataFim]".' });
+          return;
+        }
+
+        try {
+          const response = await axios.get(`${WEB_APP_URL}?action=excluirTransacao&parametro=${encodeURIComponent(parametro)}`);
+          await sock.sendMessage(GRUPO_ID, { text: response.data });
+        } catch (error) {
+          await sock.sendMessage(GRUPO_ID, { text: `❌ Erro ao excluir transação: ${error.message}` });
+        }
+        return;
       }
 
       // Comando não reconhecido (não envia mensagem de erro)

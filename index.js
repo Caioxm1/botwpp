@@ -50,7 +50,7 @@ app.post('/api/send-message', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Erro ao enviar mensagem: ' + error.message });
   }
-
+});
 // Lista de comandos para o comando "ajuda"
 const LISTA_DE_COMANDOS = `
 📋 *Lista de Comandos* 📋

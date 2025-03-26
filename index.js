@@ -5,11 +5,10 @@ const axios = require('axios');
 const express = require('express');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
-
-
 const app = express();
 app.use(express.json());
 
+const CHAVE_API = process.env.CHAVE_API || 'Saorifilhalinda';
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbypE6ax6JvWptpvcgYJ7I-ms4XAdOSckuF-3rPoVF-LImzJGxRwTXQmTG9ogIXSzZZHXw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
@@ -33,6 +32,24 @@ let ultimoComandoProcessado = null;
 // Depois faça o log das configurações
 console.log("Grupos permitidos:", GRUPOS_PERMITIDOS);
 console.log("Usuários autorizados:", USUARIOS_AUTORIZADOS);
+
+// Endpoint para enviar mensagens
+app.post('/api/send-message', async (req, res) => {
+  if (req.body.apiKey !== CHAVE_API) {
+    return res.status(403).json({ error: 'Acesso negado!' });
+  }
+
+  try {
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+    const sock = makeWASocket({ auth: state });
+    
+    const jid = `${req.body.number}@s.whatsapp.net`;
+    await sock.sendMessage(jid, { text: req.body.message });
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao enviar mensagem: ' + error.message });
+  }
 
 // Lista de comandos para o comando "ajuda"
 const LISTA_DE_COMANDOS = `

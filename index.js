@@ -300,7 +300,7 @@ async function gerarRespostaConversacao(texto) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY.trim()}`, // <-- Vírgula adicionada
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY.trim()}`, // <-- Vírgula aqui
           'HTTP-Referer': 'http://localhost', // Usar localhost
           'X-Title': 'Bot Financeiro'
         }

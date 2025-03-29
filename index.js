@@ -951,52 +951,61 @@ if (texto.toLowerCase() === "!id") {
             break;
           }
 
-          case 'orçamento': { // <--- Adicione chaves aqui
-            console.log("Processando comando 'orçamento'...");
-            const numeroOrcamentoConsulta = parseInt(parametros.numero);
-        
-            // Obtém a lista de orçamentos
-            const responseOrcamentosLista = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
-            const orcamentos = responseOrcamentosLista.data.split('\n').slice(1).filter(line => line.trim() !== '');
-        
-            // Verifica se o número é válido
-            if (numeroOrcamentoConsulta < 1 || numeroOrcamentoConsulta > orcamentos.length) {
-              await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
-              break;
-            }
-        
-            const orcamentoSelecionado = orcamentos[numeroOrcamentoConsulta - 1];
-        
-            // Valida o formato da linha
-            if (!orcamentoSelecionado.includes(':')) {
-              await sock.sendMessage(msg.key.remoteJid, { text: "❌ Formato de orçamento inválido." });
-              break;
-            }
-        
-            // Extrai a categoria
-            const [indiceCategoria, valorOrcamento] = orcamentoSelecionado.split(':');
-            const partesIndice = indiceCategoria.split('. ');
-            
-            if (partesIndice.length < 2) {
-              await sock.sendMessage(msg.key.remoteJid, { text: "❌ Formato de categoria inválido." });
-              break;
-            }
-        
-            const categoriaOrcamento = partesIndice[1].trim();
-        
-            // Obtém o resumo do orçamento
-            const responseResumo = await axios.get(`${WEB_APP_URL}?action=resumoOrcamento&categoria=${categoriaOrcamento}`);
-            const dadosResumo = responseResumo.data; // Renomeei para dadosResumo
-        
-            // Formata a mensagem
-            const mensagemResumo = 
+          case 'orçamento': {
+  console.log("Processando comando 'orçamento'...");
+  try {
+    // Corrige o acesso ao parâmetro (com ou sem acento)
+    const numeroOrcamentoConsulta = parseInt(parametros['número'] || parametros.numero);
+    
+    if (isNaN(numeroOrcamentoConsulta) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      break;
+    }
+
+    // Obtém a lista de orçamentos formatada corretamente
+    const responseOrcamentosLista = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
+    const orcamentos = responseOrcamentosLista.data
+      .split('\n')
+      .slice(1)
+      .filter(line => line.trim() !== '')
+      .map(line => {
+        const match = line.match(/(\d+)\. (.+?): R\$ (.+)/);
+        return match ? { id: parseInt(match[1]), categoria: match[2], valor: match[3] } : null;
+      })
+      .filter(Boolean);
+
+    // Verifica se o número é válido
+    if (numeroOrcamentoConsulta < 1 || numeroOrcamentoConsulta > orcamentos.length) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      break;
+    }
+
+    const orcamentoSelecionado = orcamentos[numeroOrcamentoConsulta - 1];
+    
+    // Obtém o resumo do orçamento
+    const responseResumo = await axios.get(
+      `${WEB_APP_URL}?action=resumoOrcamento&categoria=${encodeURIComponent(orcamentoSelecionado.categoria)}`
+    );
+    
+    const dadosResumo = responseResumo.data;
+
+    // Formata a mensagem
+    const mensagemResumo = 
 `📊 Orçamento de ${dadosResumo.categoria}:
+💰 Valor Definido: R$ ${orcamentoSelecionado.valor}
 💰 Total Gasto: R$ ${dadosResumo.totalGasto}
 📉 Porcentagem Utilizada: ${dadosResumo.porcentagemUtilizada}%
 📈 Valor Restante: R$ ${dadosResumo.valorRestante}`;
-            await sock.sendMessage(msg.key.remoteJid, { text: mensagemResumo });
-            break;
-          }
+
+    await sock.sendMessage(msg.key.remoteJid, { text: mensagemResumo });
+  } catch (error) {
+    console.error("Erro ao processar orçamento:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao consultar orçamento. Verifique o número e tente novamente." 
+    });
+  }
+  break;
+}
 
         case 'excluir':
           console.log("Processando comando 'excluir'...");

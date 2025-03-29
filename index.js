@@ -229,7 +229,7 @@ async function interpretarMensagemComOpenRouter(texto) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY.trim()}`,
           'HTTP-Referer': 'http://localhost',
           'X-Title': 'Bot Financeiro'
         },
@@ -300,7 +300,7 @@ async function gerarRespostaConversacao(texto) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`, // <-- Vírgula adicionada
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY.trim()}`, // <-- Vírgula adicionada
           'HTTP-Referer': 'http://localhost', // Usar localhost
           'X-Title': 'Bot Financeiro'
         }

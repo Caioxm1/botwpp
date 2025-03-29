@@ -957,7 +957,7 @@ if (texto.toLowerCase() === "!id") {
     // Corrige o acesso ao parâmetro (com ou sem acento)
     const numeroOrcamentoConsulta = parseInt(parametros['número'] || parametros.numero);
     
-    if (isNaN(numeroOrcamentoConsulta) {
+    if (isNaN(numeroOrcamentoConsulta)) {
       await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
       break;
     }

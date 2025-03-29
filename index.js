@@ -529,11 +529,13 @@ function pareceSerComandoFinanceiro(texto) {
 let sock = null;
 
 async function iniciarConexaoWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  sock = makeWASocket({
+const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+  
+  const sock = makeWASocket({
     auth: state,
     printQRInTerminal: true,
     syncFullHistory: false,
+    connectTimeoutMs: 60000,
     shouldIgnoreJid: jid => {
       const isGrupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
       const isUsuarioAutorizado = USUARIOS_AUTORIZADOS.includes(jid);
@@ -542,32 +544,24 @@ async function iniciarConexaoWhatsApp() {
   });
 
   sock.ev.on('creds.update', saveCreds);
-  sock.ev.on('connection.update', (update) => {
-    if (update.connection === 'close') iniciarConexaoWhatsApp(); // Reconecta automaticamente
-  });
-
-    return sock;
-}
-  sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
     const { connection, qr } = update;
+    
     if (qr) {
       const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr)}`;
       console.log('QR Code:', qrLink);
       wss.clients.forEach(client => client.send(JSON.stringify({ qr: qrLink })));
     }
+    
     if (connection === 'open') console.log('Bot conectado!');
-    if (connection === 'close') setTimeout(iniciarBot, 5000);
+    if (connection === 'close') setTimeout(iniciarConexaoWhatsApp, 5000);
   });
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0];
-
-    // Verificação básica
-  if (!msg?.message || !msg.key?.remoteJid || !msg.message.conversation) {
-    console.log("Mensagem inválida ignorada");
-    return;
+    try {
+      const msg = messages[0];
+      if (!msg?.message || !msg.key?.remoteJid) return;
   }
 
   const remetente = msg.key.participant || msg.key.remoteJid;
@@ -710,60 +704,67 @@ if (texto.toLowerCase() === "!id") {
         }
 
         case 'consultar pedidos': {
-          console.log("Processando comando 'consultar pedidos'...");
-          const cliente = parametros.cliente;
-          let dataFormatada = parametros.data;
-        
-          // Validação e formatação da data
-          if (dataFormatada && dataFormatada.match(/^\d{2}\/\d{2}$/)) {
-            dataFormatada += `/${new Date().getFullYear()}`; // Adiciona ano se faltar
-          }
-        
-          try {
-            // Faz a requisição com a data formatada
-            const response = await axios.get(
-              `${WEB_APP_URL}?action=consultarPedidos&cliente=${encodeURIComponent(cliente)}&data=${encodeURIComponent(dataFormatada)}`
-            );
-            
-            const pedidos = response.data;
-        
-            if (!pedidos || pedidos.length === 0) {
-              await sock.sendMessage(msg.key.remoteJid, { 
-                text: `📭 Nenhum pedido encontrado para *${cliente}* em *${dataFormatada}*.` 
-              });
-              return;
-            }
-        
-            // Construção da mensagem
-            let mensagem = `📅 Pedidos para *${cliente}* em *${dataFormatada}*:\n\n`;
-            let totalPedido = 0;
-        
-            pedidos.forEach((pedido) => {
-              mensagem += `----------------------------------------\n`;
-              mensagem += `🍅 *Produto*: ${pedido.produto}\n`;
-              mensagem += `💵 *Preço Unitário*: R$ ${pedido.precoUnitario}\n`;
-              mensagem += `📦 *Quantidade*: ${pedido.quantidade}\n`;
-              
-              // Garante que o total seja tratado como string
-              const totalProduto = typeof pedido.total === 'number' 
-                ? pedido.total.toFixed(2).replace(".", ",") 
-                : pedido.total.toString().replace(".", ",");
-              
-              mensagem += `💰 *Total do Produto*: R$ ${totalProduto}\n`;
-              totalPedido += parseFloat(pedido.total.toString().replace(",", "."));
-            });
-        
-            mensagem += `\n💼 *Valor Total do Pedido*: R$ ${totalPedido.toFixed(2).replace(".", ",")}`;
-        
-            await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
-          } catch (error) {
-            console.error("Erro ao consultar pedidos:", error);
-            await sock.sendMessage(msg.key.remoteJid, { 
-              text: "❌ Erro ao buscar pedidos. Verifique o formato da data (DD/MM/AAAA)." 
-            });
-          }
-          break;
+        console.log("Processando comando 'consultar pedidos'...");
+        const cliente = parametros.cliente;
+        let dataFormatada = parametros.data;
+      
+        if (dataFormatada && dataFormatada.match(/^\d{2}\/\d{2}$/)) {
+          dataFormatada += `/${new Date().getFullYear()}`;
         }
+      
+        try {
+          const response = await axios.get(
+            `${WEB_APP_URL}?action=consultarPedidos&cliente=${encodeURIComponent(cliente)}&data=${encodeURIComponent(dataFormatada)}`
+          );
+          
+          const pedidos = response.data;
+      
+          if (!pedidos || pedidos.length === 0) {
+            await sock.sendMessage(msg.key.remoteJid, { 
+              text: `📭 Nenhum pedido encontrado para *${cliente}* em *${dataFormatada}*.` 
+            });
+            return;
+          }
+      
+          let mensagem = `📅 Pedidos para *${cliente}* em *${dataFormatada}*:\n\n`;
+          let totalPedido = 0;
+      
+          pedidos.forEach((pedido) => {
+            mensagem += `----------------------------------------\n`;
+            mensagem += `🍅 *Produto*: ${pedido.produto}\n`;
+            mensagem += `💵 *Preço Unitário*: R$ ${pedido.precoUnitario}\n`;
+            mensagem += `📦 *Quantidade*: ${pedido.quantidade}\n`;
+            
+            const totalProduto = typeof pedido.total === 'number' 
+              ? pedido.total.toFixed(2).replace(".", ",") 
+              : pedido.total.toString().replace(".", ",");
+            
+            mensagem += `💰 *Total do Produto*: R$ ${totalProduto}\n`;
+            totalPedido += parseFloat(pedido.total.toString().replace(",", "."));
+          });
+      
+          mensagem += `\n💼 *Valor Total do Pedido*: R$ ${totalPedido.toFixed(2).replace(".", ",")}`;
+      
+          await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+        } catch (error) {
+          console.error("Erro ao consultar pedidos:", error);
+          await sock.sendMessage(msg.key.remoteJid, { 
+            text: "❌ Erro ao buscar pedidos. Verifique o formato da data (DD/MM/AAAA)." 
+          });
+        }
+        break; // Fechamento correto do case
+      }
+
+    } catch (error) {
+      console.error("Erro crítico no handler de mensagens:", error);
+      await sock.sendMessage(msg.key.remoteJid, { 
+        text: "❌ Ocorreu um erro interno. Tente novamente mais tarde." 
+      });
+    }
+  });
+
+  return sock;
+}
         
         case 'adicionar pedido': {
           console.log("Processando comando 'adicionar pedido'...");
@@ -1007,8 +1008,7 @@ if (texto.toLowerCase() === "!id") {
       await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
     }
   } catch (error) {
-    console.error("Erro ao processar a mensagem:", error);
-    await sock.sendMessage(msg.key.remoteJid, { text: `❌ Erro: ${error.message}` });
+    console.error("Erro crítico no handler de mensagens:", error);
   }
 });
 }

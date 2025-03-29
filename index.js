@@ -102,9 +102,6 @@ const LISTA_DE_COMANDOS = `
 
 // Função para interpretar mensagens usando o OpenRouter
 async function interpretarMensagemComOpenRouter(texto) {
-
-  console.log("Chave API:", OPENROUTER_API_KEY);
-  console.log("Modelo sendo usado:", 'deepseek/deepseek-chat-v3-0324:free');
   console.log("Iniciando interpretação da mensagem com OpenRouter...");
   try {
     const resposta = await axios.post(
@@ -579,15 +576,13 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     try {
       const msg = messages[0];
       if (!msg?.message || !msg.key?.remoteJid) return;
-  }
+    
 
   const remetente = msg.key.participant || msg.key.remoteJid;
-
-  // Declaração única da variável 'texto'
   const texto = msg.message.conversation.trim().toLowerCase();
 
   // Log para depuração
-  console.log(`\n=== Nova mensagem ===`);
+  console.log(`=== Nova mensagem ===`);
   console.log(`De: ${msg.key.participant || msg.key.remoteJid}`);
   console.log(`Texto: ${texto}`);
   console.log(`Grupo: ${msg.key.remoteJid}`);
@@ -637,7 +632,7 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   if (GRUPOS_PERMITIDOS.includes(msg.key.remoteJid)) {
     console.log("Mensagem de grupo autorizado:", msg.key.remoteJid);
   } else {
-    console.log("Grupo não autorizado ou chat privado:", msg.key.remoteJid);
+    console .log("Grupo não autorizado ou chat privado:", msg.key.remoteJid);
     return; // Ignora mensagens de grupos não autorizados e chats privados
   }
 
@@ -655,10 +650,7 @@ if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
     }
 
     // Verifica se a mensagem é do tipo 'conversation' (texto)
-    if (!GRUPOS_PERMITIDOS.includes(msg.key.remoteJid)) {
-      console.log("Grupo não autorizado:", msg.key.remoteJid);
-      return;
-    }
+    if (!GRUPOS_PERMITIDOS.includes(msg.key.remoteJid)) return;
 
     // Verifica se a mensagem é antiga (mais de 60 segundos)
     const mensagemTimestamp = msg.messageTimestamp;
@@ -684,6 +676,8 @@ if (texto.toLowerCase() === "!id") {
   ultimoComandoProcessado = texto;
 
   console.log("Texto da mensagem:", texto);
+
+  
 
     // --- VERIFICAÇÃO DO COMANDO "AJUDA" ---
   if (texto.toLowerCase() === "ajuda") {
@@ -760,7 +754,7 @@ if (texto.toLowerCase() === "!id") {
             totalPedido += parseFloat(pedido.total.toString().replace(",", "."));
           });
       
-          mensagem += `\n💼 *Valor Total do Pedido*: R$ ${totalPedido.toFixed(2).replace(".", ",")}`;
+          mensagem += `💼 *Valor Total do Pedido*: R$ ${totalPedido.toFixed(2).replace(".", ",")}`;
       
           await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
         } catch (error) {
@@ -770,19 +764,7 @@ if (texto.toLowerCase() === "!id") {
           });
         }
         break; // Fechamento correto do case
-      }
-
-    } catch (error) {
-      console.error("Erro crítico no handler de mensagens:", error);
-      await sock.sendMessage(msg.key.remoteJid, { 
-        text: "❌ Ocorreu um erro interno. Tente novamente mais tarde." 
-      });
-    }
-  });
-
-  return sock;
-}
-        
+      }    
         case 'adicionar pedido': {
           console.log("Processando comando 'adicionar pedido'...");
           const cliente = parametros.cliente;
@@ -1009,35 +991,25 @@ if (texto.toLowerCase() === "!id") {
           break;
 
           default:
-            console.log("Comando não reconhecido.");
-            await sock.sendMessage(msg.key.remoteJid, { text: "❌ Comando não reconhecido. Use 'ajuda' para ver a lista de comandos." });
+                await sock.sendMessage(msg.key.remoteJid, { 
+                  text: "❌ Comando não reconhecido. Use 'ajuda'." 
+                });
+            }
+          }
+        } else {
+          const respostaConversacao = await gerarRespostaConversacao(texto);
+          await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
         }
-      } else {
-        // Se o OpenRouter retornou JSON vazio ou inválido, entra na conversação
-        console.log("Gerando resposta de conversação...");
-        const respostaConversacao = await gerarRespostaConversacao(texto);
-        await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
+      } catch (error) {
+        console.error("Erro no processamento:", error);
+        await sock.sendMessage(msg.key.remoteJid, { 
+          text: "❌ Ocorreu um erro interno. Tente novamente." 
+        });
       }
-    } else {
-      // Se a mensagem não parece ser um comando, entra na conversação
-      console.log("Gerando resposta de conversação...");
-      const respostaConversacao = await gerarRespostaConversacao(texto);
-      await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
+    } catch (error) {
+      console.error("Erro crítico:", error);
     }
-  } catch (error) {
-    console.error("Erro crítico no processamento de mensagens:", {
-      message: error.message,
-      stack: error.stack,
-      rawMessage: messages[0] // Log da mensagem problemática
-    });
-    
-    if (sock && msg?.key?.remoteJid) {
-      await sock.sendMessage(msg.key.remoteJid, { 
-        text: "⚠️ Ocorreu um erro interno. Nossa equipe já foi notificada." 
-      });
-    }
-  }
-});
+  });
 }
 
 iniciarConexaoWhatsApp().then(() => {

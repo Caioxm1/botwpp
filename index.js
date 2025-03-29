@@ -240,7 +240,6 @@ async function interpretarMensagemComOpenRouter(texto) {
     if (resposta.status === 401) {
       throw new Error("Erro de autenticação: Chave de API inválida ou expirada");
     }
-    );
 
     // Verificação de status adicionada
     if (resposta.status !== 200) {

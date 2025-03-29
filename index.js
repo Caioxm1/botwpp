@@ -548,6 +548,24 @@ function pareceSerComandoFinanceiro(texto) {
     "listar clientes", "clientes registrados", "ver clientes", "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
   ];
 
+// Padrões específicos para consulta de pedidos
+  const padroesPedidos = [
+    /(consultar|ver|listar|mostrar) pedidos?/i,
+    /pedidos? (do|da|para|de) /i,
+    /(lista|relatório) de pedidos?/i
+  ];
+
+  // Verifica se é um comando financeiro geral
+  const ehFinanceiro = palavrasChaveFinanceiras.some(palavra => 
+    texto.toLowerCase().includes(palavra.toLowerCase())
+  );
+
+  // Verifica se é uma consulta de pedidos
+  const ehPedido = padroesPedidos.some(padrao => padrao.test(texto));
+
+  return ehFinanceiro || ehPedido;
+}
+  
   // Verifica se a mensagem contém alguma palavra-chave financeira
   return palavrasChaveFinanceiras.some(palavra => 
     texto.toLowerCase().includes(palavra.toLowerCase())
@@ -693,7 +711,10 @@ if (texto.toLowerCase() === "!id") {
   ultimoComandoProcessado = texto;
 
   console.log("Texto da mensagem:", texto);
-
+  console.log("Parece comando financeiro?", pareceSerComandoFinanceiro(texto));
+        
+        if (pareceSerComandoFinanceiro(texto)) {
+            console.log("Tentando interpretar como comando financeiro...");
   
 
     // --- VERIFICAÇÃO DO COMANDO "AJUDA" ---

@@ -152,7 +152,7 @@ async function interpretarMensagemComOpenRouter(texto) {
 
 
             **Instruções Especiais para Pedidos:**
-            - Se a mensagem incluir palavras como 'consultar pedidos', 'ver pedidos' ou 'listar pedidos', extraia:
+            - Se a mensagem incluir algo como 'consultar pedidos', 'consultar pedido', 'ver pedidos' ou 'listar pedidos', extraia:
             - cliente: Nome do cliente após 'para' ou 'do'.
             **Instruções Especiais para Datas:**
             - A data deve ser extraída **exatamente como escrita pelo usuário**, sem modificações.\n" +

@@ -290,8 +290,8 @@ async function gerarRespostaConversacao(texto) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'http://localhost',
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`, // <-- Vírgula adicionada
+          'HTTP-Referer': 'http://localhost', // Usar localhost
           'X-Title': 'Bot Financeiro'
         }
       }

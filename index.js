@@ -163,8 +163,10 @@ async function interpretarMensagemComOpenRouter(texto) {
             Exemplo:
             - Mensagem: 'Quero ver os pedidos do cliente Lavradio de 21/03/2025'
             - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "21/03/2025" } }
-            - Mensagem: "Lista de pedidos da Lavradio dia 21/03/2025"  
-            - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "21/03/2025" } }
+            - Mensagem: "consultar pedido da lavradio 29/03/2025"  
+            - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "29/03/2025" } }
+            - Mensagem: "pedidos da lavradio dia 29/03/2025"  
+            - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "29/03/2025" } }
 
             1º **Instruções Especiais:**
             - Se a mensagem se referir a compras de alimentos (como verduras, legumes, frutas, carnes, etc.), a categoria deve ser sempre "Alimentação".

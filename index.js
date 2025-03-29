@@ -232,8 +232,14 @@ async function interpretarMensagemComOpenRouter(texto) {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'HTTP-Referer': 'http://localhost',
           'X-Title': 'Bot Financeiro'
-        }
+        },
+        timeout: 10000 // 10 segundos de timeout
       }
+    );
+
+    if (resposta.status === 401) {
+      throw new Error("Erro de autenticação: Chave de API inválida ou expirada");
+    }
     );
 
     // Verificação de status adicionada
@@ -262,11 +268,16 @@ async function interpretarMensagemComOpenRouter(texto) {
       return interpretarMensagemManual(texto); // Fallback manual
     }
   } catch (erro) {
-    console.error("Erro detalhado na interpretação:", {
+    console.error("Erro detalhado na API OpenRouter:", {
       message: erro.message,
-      stack: erro.stack,
-      response: erro.response?.data
+      response: erro.response?.data,
+      status: erro.response?.status
     });
+    
+    if (erro.response?.status === 401) {
+      throw new Error("❌ Erro de autenticação com a API OpenRouter. Verifique sua chave de API.");
+    }
+    
     return null;
   }
 }

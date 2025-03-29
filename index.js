@@ -1,3 +1,4 @@
+require('dotenv').config({ path: '/home/seu_usuario/.env_botwpp' });
 const crypto = require('crypto');
 globalThis.crypto = crypto.webcrypto;
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
@@ -18,7 +19,7 @@ const USUARIOS_AUTORIZADOS = [
   '5521975874116@s.whatsapp.net', // N1
   '5521976919619@s.whatsapp.net' // N2
 ];
-const OPENROUTER_API_KEY = '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';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
   width: 800,
   height: 600,

@@ -107,7 +107,7 @@ async function interpretarMensagemComOpenRouter(texto) {
     const resposta = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'google/palm-2',
+        model: 'deepseek/deepseek-chat-v3-0324:free',
         messages: [
           {
             role: 'user',
@@ -278,7 +278,7 @@ async function gerarRespostaConversacao(texto) {
     const resposta = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'google/palm-2',
+        model: 'deepseek/deepseek-chat-v3-0324:free',
         messages: [
           {
             role: 'user',

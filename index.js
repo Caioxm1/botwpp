@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '/home/seu_usuario/.env_botwpp' });
+require('dotenv').config({ path: '/home/caio_eduardo_904/.env_botwpp' });
 const crypto = require('crypto');
 globalThis.crypto = crypto.webcrypto;
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');

@@ -9,6 +9,7 @@ const WebSocket = require('ws');
 const app = express();
 app.use(express.json());
 
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbypE6ax6JvWptpvcgYJ7I-ms4XAdOSckuF-3rPoVF-LImzJGxRwTXQmTG9ogIXSzZZHXw/exec';
 const GRUPOS_PERMITIDOS = [
@@ -19,7 +20,6 @@ const USUARIOS_AUTORIZADOS = [
   '5521975874116@s.whatsapp.net', // N1
   '5521976919619@s.whatsapp.net' // N2
 ];
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
   width: 800,
   height: 600,

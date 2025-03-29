@@ -148,7 +148,7 @@ async function interpretarMensagemComOpenRouter(texto) {
             **Instruções Especiais para Pedidos:**
             - Se a mensagem incluir palavras como 'consultar pedidos', 'ver pedidos' ou 'listar pedidos', extraia:
             - cliente: Nome do cliente após 'para' ou 'do'.
-            **Instruções Especiais para Datas:**\n" +
+            **Instruções Especiais para Datas:**
             - A data deve ser extraída **exatamente como escrita pelo usuário**, sem modificações.\n" +
             - Exemplo:
             - Mensagem: 'Lista de pedidos da Lavradio dia 21/03/2025'
@@ -221,7 +221,7 @@ async function interpretarMensagemComOpenRouter(texto) {
 
             **Retorne apenas o JSON, sem explicações adicionais.**
 
-            Mensagem: "${texto}"`
+            Mensagem: ${JSON.stringify(texto)}`
           }
         ],
       },
@@ -232,6 +232,11 @@ async function interpretarMensagemComOpenRouter(texto) {
         }
       }
     );
+
+    // Verificação de status adicionada
+    if (resposta.status !== 200) {
+      throw new Error(`Erro na API: ${resposta.status} - ${resposta.statusText}`);
+    }
 
     console.log("Resposta da API OpenRouter recebida:", JSON.stringify(resposta.data, null, 2));
 
@@ -266,12 +271,12 @@ async function gerarRespostaConversacao(texto) {
     const resposta = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
       {
-        model: 'qwen/qwq-32b:free',
+        model: 'google/gemini-2.5-pro-exp-03-25:free',
         messages: [
           {
             role: 'user',
             content: `Você é um assistente virtual que ajuda com finanças e também pode conversar sobre outros assuntos. Responda de forma amigável e útil.
-            Mensagem: "${texto}"`
+            Mensagem: ${JSON.stringify(texto)}`
           }
         ],
       },
@@ -283,6 +288,11 @@ async function gerarRespostaConversacao(texto) {
       }
     );
 
+// Verificação de status adicionada
+    if (resposta.status !== 200) {
+      throw new Error(`Erro na API: ${resposta.status} - ${resposta.statusText}`);
+    }
+    
     console.log("Resposta da API OpenRouter recebida:", JSON.stringify(resposta.data, null, 2));
 
     // Acessa o conteúdo da mensagem

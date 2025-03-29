@@ -541,7 +541,7 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     syncFullHistory: false,
     connectTimeoutMs: 60000,
     keepAliveIntervalMs: 30_000,
-    browser: ['Bot Financeiro', 'Chrome', '115.0.0.0'],
+    browser: ['botwpp', 'Chrome', '115.0.0.0'],
     shouldIgnoreJid: jid => {
       const isGrupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
       const isUsuarioAutorizado = USUARIOS_AUTORIZADOS.includes(jid);

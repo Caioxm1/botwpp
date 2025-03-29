@@ -262,7 +262,11 @@ async function interpretarMensagemComOpenRouter(texto) {
       return interpretarMensagemManual(texto); // Fallback manual
     }
   } catch (erro) {
-    console.error("Erro ao interpretar mensagem com OpenRouter:", erro);
+    console.error("Erro detalhado na interpretação:", {
+      message: erro.message,
+      stack: erro.stack,
+      response: erro.response?.data
+    });
     return null;
   }
 }
@@ -304,8 +308,12 @@ async function gerarRespostaConversacao(texto) {
     const mensagem = resposta.data.choices[0].message.content;
     return mensagem;
   } catch (erro) {
-    console.error("Erro ao gerar resposta de conversação:", erro);
-    return "❌ Desculpe, não consegui processar sua mensagem. Tente novamente mais tarde.";
+    console.error("Erro detalhado na geração de resposta:", {
+      message: erro.message,
+      stack: erro.stack,
+      response: erro.response?.data
+    });
+    return "❌ Erro interno. Tente novamente mais tarde.";
   }
 }
 
@@ -1014,7 +1022,17 @@ if (texto.toLowerCase() === "!id") {
       await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
     }
   } catch (error) {
-    console.error("Erro crítico no handler de mensagens:", error);
+    console.error("Erro crítico no processamento de mensagens:", {
+      message: error.message,
+      stack: error.stack,
+      rawMessage: messages[0] // Log da mensagem problemática
+    });
+    
+    if (sock && msg?.key?.remoteJid) {
+      await sock.sendMessage(msg.key.remoteJid, { 
+        text: "⚠️ Ocorreu um erro interno. Nossa equipe já foi notificada." 
+      });
+    }
   }
 });
 }

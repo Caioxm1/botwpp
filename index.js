@@ -41,9 +41,10 @@ app.post('/api/send-message', async (req, res) => {
   }
 
   try {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-    const sock = makeWASocket({ auth: state });
-    
+    if (!sock || sock.connection === 'close') {
+      await iniciarConexaoWhatsApp(); // Reconecta se necessário
+    }
+
     const jid = `${req.body.number}@s.whatsapp.net`;
     await sock.sendMessage(jid, { text: req.body.message });
     
@@ -525,24 +526,28 @@ function pareceSerComandoFinanceiro(texto) {
 }
 
 // Função principal do bot
-async function iniciarBot() {
+let sock = null;
+
+async function iniciarConexaoWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const sock = makeWASocket({
+  sock = makeWASocket({
     auth: state,
+    printQRInTerminal: true,
     syncFullHistory: false,
     shouldIgnoreJid: jid => {
-      // Permite grupos da lista PERMITIDOS
       const isGrupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
-      
-      // Permite usuários autorizados em chats privados
-      const isUsuarioAutorizado = jid.endsWith('@s.whatsapp.net') && 
-                                USUARIOS_AUTORIZADOS.includes(jid);
-      
-      // Ignora apenas se NÃO for grupo autorizado E NÃO for usuário autorizado
+      const isUsuarioAutorizado = USUARIOS_AUTORIZADOS.includes(jid);
       return !(isGrupoAutorizado || isUsuarioAutorizado);
-    },
-    printQRInTerminal: true
+    }
   });
+
+  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('connection.update', (update) => {
+    if (update.connection === 'close') iniciarConexaoWhatsApp(); // Reconecta automaticamente
+  });
+
+    return sock;
+}
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
@@ -1008,5 +1013,6 @@ if (texto.toLowerCase() === "!id") {
 });
 }
 
-app.listen(3000, () => console.log("Servidor rodando!"));
-iniciarBot();
+iniciarConexaoWhatsApp().then(() => {
+  app.listen(3000, () => console.log("Servidor rodando!"));
+});

@@ -102,6 +102,9 @@ const LISTA_DE_COMANDOS = `
 
 // Função para interpretar mensagens usando o OpenRouter
 async function interpretarMensagemComOpenRouter(texto) {
+
+  console.log("Chave API:", OPENROUTER_API_KEY);
+  console.log("Modelo sendo usado:", 'deepseek/deepseek-chat-v3-0324:free');
   console.log("Iniciando interpretação da mensagem com OpenRouter...");
   try {
     const resposta = await axios.post(

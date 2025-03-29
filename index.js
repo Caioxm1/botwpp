@@ -229,9 +229,9 @@ async function interpretarMensagemComOpenRouter(texto) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`
-          'HTTP-Referer': 'https://34.27.125.225',
-          'X-Title': 'botwpp'
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'http://localhost',
+          'X-Title': 'Bot Financeiro'
         }
       }
     );
@@ -286,9 +286,9 @@ async function gerarRespostaConversacao(texto) {
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`
-          'HTTP-Referer': 'https://34.27.125.225',
-          'X-Title': 'botwpp'
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'http://localhost',
+          'X-Title': 'Bot Financeiro'
         }
       }
     );
@@ -539,9 +539,9 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     auth: state,
     printQRInTerminal: true,
     syncFullHistory: false,
-    connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 30_000,
-    browser: ['botwpp', 'Chrome', '115.0.0.0'],
+    connectTimeoutMs: 120_000,
+    keepAliveIntervalMs: 25_000,
+    browser: ['Bot Financeiro', 'Chrome', '115.0.0.0'],
     shouldIgnoreJid: jid => {
       const isGrupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
       const isUsuarioAutorizado = USUARIOS_AUTORIZADOS.includes(jid);

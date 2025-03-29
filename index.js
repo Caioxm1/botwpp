@@ -65,6 +65,11 @@ const LISTA_DE_COMANDOS = `
 - saída [valor] [categoria]: Registra uma saída de dinheiro em uma categoria específica.
 - poupança [valor]: Adiciona um valor à poupança.
 
+🛒 *Pedidos e Clientes*
+- adicionar pedido [cliente] [produto] [quantidade] [precoUnitario]: Registra um novo pedido para um cliente com detalhes do produto, quantidade e preço.
+- consultar pedidos [cliente] [data]: Consulta todos os pedidos de um cliente (opcional: filtra por data). Sinônimos: "lista de pedidos", "ver pedidos", "pedidos do cliente".
+- listar clientes: Mostra todos os clientes cadastrados no sistema. Sinônimos: "meus clientes", "clientes registrados", "quais são meus clientes".
+
 📊 *Gráficos e Estatísticas*
 - média: Mostra a média de entradas.
 - grafico [tipo] [dados] [periodo]: Gera um gráfico com base nos dados fornecidos.

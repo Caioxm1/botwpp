@@ -564,7 +564,7 @@ function pareceSerComandoFinanceiro(texto) {
   const ehPedido = padroesPedidos.some(padrao => padrao.test(texto));
 
   return ehFinanceiro || ehPedido;
-}
+
   
   // Verifica se a mensagem contém alguma palavra-chave financeira
   return palavrasChaveFinanceiras.some(palavra => 
@@ -1024,7 +1024,7 @@ if (texto.toLowerCase() === "!id") {
     }
     break;
 }
-
+          
         case 'excluir':
           console.log("Processando comando 'excluir'...");
           const numeros = Object.values(parametros).join(",");

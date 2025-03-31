@@ -548,24 +548,6 @@ function pareceSerComandoFinanceiro(texto) {
     "listar clientes", "clientes registrados", "ver clientes", "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
   ];
 
-// Padrões específicos para consulta de pedidos
-  const padroesPedidos = [
-    /(consultar|ver|listar|mostrar) pedidos?/i,
-    /pedidos? (do|da|para|de) /i,
-    /(lista|relatório) de pedidos?/i
-  ];
-
-  // Verifica se é um comando financeiro geral
-  const ehFinanceiro = palavrasChaveFinanceiras.some(palavra => 
-    texto.toLowerCase().includes(palavra.toLowerCase())
-  );
-
-  // Verifica se é uma consulta de pedidos
-  const ehPedido = padroesPedidos.some(padrao => padrao.test(texto));
-
-  return ehFinanceiro || ehPedido;
-
-  
   // Verifica se a mensagem contém alguma palavra-chave financeira
   return palavrasChaveFinanceiras.some(palavra => 
     texto.toLowerCase().includes(palavra.toLowerCase())
@@ -711,10 +693,7 @@ if (texto.toLowerCase() === "!id") {
   ultimoComandoProcessado = texto;
 
   console.log("Texto da mensagem:", texto);
-  console.log("Parece comando financeiro?", pareceSerComandoFinanceiro(texto));
-        
-        if (pareceSerComandoFinanceiro(texto)) {
-            console.log("Tentando interpretar como comando financeiro...");
+
   
 
     // --- VERIFICAÇÃO DO COMANDO "AJUDA" ---
@@ -975,56 +954,61 @@ if (texto.toLowerCase() === "!id") {
           }
 
           case 'orçamento': {
-    console.log("Processando comando 'orçamento'...");
-    try {
-        const numeroOrcamentoConsulta = parseInt(parametros['número'] || parametros.numero);
-        
-        if (isNaN(numeroOrcamentoConsulta)) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
-            break;
-        }
+  console.log("Processando comando 'orçamento'...");
+  try {
+    // Corrige o acesso ao parâmetro (com ou sem acento)
+    const numeroOrcamentoConsulta = parseInt(parametros['número'] || parametros.numero);
+    
+    if (isNaN(numeroOrcamentoConsulta)) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      break;
+    }
 
-        const responseOrcamentosLista = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
-        const orcamentos = responseOrcamentosLista.data
-            .split('\n')
-            .slice(1)
-            .filter(line => line.trim() !== '')
-            .map(line => {
-                const match = line.match(/(\d+)\. (.+?): R\$ (.+)/);
-                return match ? { id: parseInt(match[1]), categoria: match[2], valor: match[3] } : null;
-            })
-            .filter(Boolean);
+    // Obtém a lista de orçamentos formatada corretamente
+    const responseOrcamentosLista = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
+    const orcamentos = responseOrcamentosLista.data
+      .split('\n')
+      .slice(1)
+      .filter(line => line.trim() !== '')
+      .map(line => {
+        const match = line.match(/(\d+)\. (.+?): R\$ (.+)/);
+        return match ? { id: parseInt(match[1]), categoria: match[2], valor: match[3] } : null;
+      })
+      .filter(Boolean);
 
-        if (numeroOrcamentoConsulta < 1 || numeroOrcamentoConsulta > orcamentos.length) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
-            break;
-        }
+    // Verifica se o número é válido
+    if (numeroOrcamentoConsulta < 1 || numeroOrcamentoConsulta > orcamentos.length) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      break;
+    }
 
-        const orcamentoSelecionado = orcamentos[numeroOrcamentoConsulta - 1];
-        
-        const responseResumo = await axios.get(
-            `${WEB_APP_URL}?action=resumoOrcamento&categoria=${encodeURIComponent(orcamentoSelecionado.categoria)}`
-        );
-        
-        const dadosResumo = responseResumo.data;
+    const orcamentoSelecionado = orcamentos[numeroOrcamentoConsulta - 1];
+    
+    // Obtém o resumo do orçamento
+    const responseResumo = await axios.get(
+      `${WEB_APP_URL}?action=resumoOrcamento&categoria=${encodeURIComponent(orcamentoSelecionado.categoria)}`
+    );
+    
+    const dadosResumo = responseResumo.data;
 
-        const mensagemResumo = 
+    // Formata a mensagem
+    const mensagemResumo = 
 `📊 Orçamento de ${dadosResumo.categoria}:
 💰 Valor Definido: R$ ${orcamentoSelecionado.valor}
 💰 Total Gasto: R$ ${dadosResumo.totalGasto}
 📉 Porcentagem Utilizada: ${dadosResumo.porcentagemUtilizada}%
 📈 Valor Restante: R$ ${dadosResumo.valorRestante}`;
 
-        await sock.sendMessage(msg.key.remoteJid, { text: mensagemResumo });
-    } catch (error) {
-        console.error("Erro ao processar orçamento:", error);
-        await sock.sendMessage(msg.key.remoteJid, { 
-            text: "❌ Erro ao consultar orçamento. Verifique o número e tente novamente." 
-        });
-    }
-    break;
+    await sock.sendMessage(msg.key.remoteJid, { text: mensagemResumo });
+  } catch (error) {
+    console.error("Erro ao processar orçamento:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao consultar orçamento. Verifique o número e tente novamente." 
+    });
+  }
+  break;
 }
-          
+
         case 'excluir':
           console.log("Processando comando 'excluir'...");
           const numeros = Object.values(parametros).join(",");

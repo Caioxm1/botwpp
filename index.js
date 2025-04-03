@@ -168,6 +168,17 @@ async function interpretarMensagemComOpenRouter(texto) {
             - Mensagem: "pedidos da lavradio dia 29/03/2025"  
             - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "29/03/2025" } }
 
+            **Exemplos de datas:**
+            - Mensagem: "histórico do dia 29/03"
+            - JSON: { "comando": "historico", "parametros": { "dataInicio": "29/03/2024", "dataFim": "29/03/2024" } }
+            
+            - Mensagem: "histórico de 29/03 até 03/04"
+            - JSON: { "comando": "historico", "parametros": { "dataInicio": "29/03/2024", "dataFim": "03/04/2024" } }
+            
+            - Mensagem: "histórico de 15/03 a 20/03"
+            - JSON: { "comando": "historico", "parametros": { "dataInicio": "15/03/2024", "dataFim": "20/03/2024" } }
+
+
             1º **Instruções Especiais:**
             - Se a mensagem se referir a compras de alimentos (como verduras, legumes, frutas, carnes, etc.), a categoria deve ser sempre "Alimentação".
             - Exemplos de mensagens que devem ser categorizadas como "Alimentação":
@@ -353,6 +364,20 @@ function interpretarMensagemManual(texto) {
       return { comando: "listar clientes" };
     }
 
+    // Fallback para "historico"
+    if (texto.match(/histórico|historico/i)) {
+      const dataMatch = texto.match(/(\d{2}\/\d{2}\/?\d{0,4})/g) || [];
+      const [dataInicio, dataFim] = dataMatch;
+      
+      return { 
+        comando: "historico", 
+        parametros: { 
+          dataInicio: dataInicio || "", 
+          dataFim: dataFim || dataInicio || "" 
+        }
+      };
+    }
+  
     // Mapeamento de palavras-chave para categorias
   const categorias = {
     // Alimentação
@@ -956,6 +981,15 @@ if (texto.toLowerCase() === "!id") {
 // Adicione este case:
 case 'historico': {
   console.log("Processando comando 'historico'...");
+
+  // Extrair datas (formato: DD/MM ou DD/MM/AAAA)
+  let dataInicio = parametros?.dataInicio || "";
+  let dataFim = parametros?.dataFim || "";
+
+  // Adicionar ano atual se não estiver especificado
+  const anoAtual = new Date().getFullYear();
+  if (dataInicio && dataInicio.length <= 5) dataInicio += `/${anoAtual}`;
+  if (dataFim && dataFim.length <= 5) dataFim += `/${anoAtual}`;
   
   // Obter parâmetros
   const tipoFiltro = parametros?.tipo || "todos";
@@ -965,7 +999,7 @@ case 'historico': {
 
   // Chamar a API
   const response = await axios.get(
-    `${WEB_APP_URL}?action=historico&tipo=${tipoFiltro}&categoria=${categoriaFiltro}&dataInicio=${dataInicio}&dataFim=${dataFim}`
+    `${WEB_APP_URL}?action=historico&dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`
   );
   
   const historico = response.data.historico;

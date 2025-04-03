@@ -957,7 +957,7 @@ if (texto.toLowerCase() === "!id") {
 case 'historico': {
   console.log("Processando comando 'historico'...");
   
-  // Obter parâmetros (com valores padrão)
+  // Obter parâmetros
   const tipoFiltro = parametros?.tipo || "todos";
   const categoriaFiltro = parametros?.categoria || "";
   const dataInicio = parametros?.dataInicio || "";
@@ -975,13 +975,15 @@ case 'historico': {
     return;
   }
 
-  // Formatar a resposta
+  // Formatar a resposta com numeração
   let mensagem = "📜 *Histórico de Transações*:\n\n";
-  historico.forEach((transacao) => {
-    mensagem += `📅 *${transacao.data}* - ${transacao.tipo}\n`;
+  historico.forEach((transacao, index) => {
+    mensagem += `${index + 1} - 📅 *${transacao.data}* - ${transacao.tipo}\n`;
     mensagem += `💵 *Valor*: R$ ${transacao.valor}\n`;
     mensagem += `🏷️ *Categoria*: ${transacao.categoria || "Sem categoria"}\n\n`;
   });
+
+  mensagem += "\n❌ Para excluir: use `excluir [número(s)]` (ex: `excluir 2,5`)";
 
   await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
   break;

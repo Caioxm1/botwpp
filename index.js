@@ -953,6 +953,40 @@ if (texto.toLowerCase() === "!id") {
             break;
           }
 
+// Adicione este case:
+case 'historico': {
+  console.log("Processando comando 'historico'...");
+  
+  // Obter parâmetros (com valores padrão)
+  const tipoFiltro = parametros?.tipo || "todos";
+  const categoriaFiltro = parametros?.categoria || "";
+  const dataInicio = parametros?.dataInicio || "";
+  const dataFim = parametros?.dataFim || "";
+
+  // Chamar a API
+  const response = await axios.get(
+    `${WEB_APP_URL}?action=historico&tipo=${tipoFiltro}&categoria=${categoriaFiltro}&dataInicio=${dataInicio}&dataFim=${dataFim}`
+  );
+  
+  const historico = response.data.historico;
+
+  if (historico.length === 0) {
+    await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhuma transação encontrada." });
+    return;
+  }
+
+  // Formatar a resposta
+  let mensagem = "📜 *Histórico de Transações*:\n\n";
+  historico.forEach((transacao) => {
+    mensagem += `📅 *${transacao.data}* - ${transacao.tipo}\n`;
+    mensagem += `💵 *Valor*: R$ ${transacao.valor}\n`;
+    mensagem += `🏷️ *Categoria*: ${transacao.categoria || "Sem categoria"}\n\n`;
+  });
+
+  await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+  break;
+}
+              
           case 'orçamento': {
   console.log("Processando comando 'orçamento'...");
   try {

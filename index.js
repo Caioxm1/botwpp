@@ -982,24 +982,30 @@ if (texto.toLowerCase() === "!id") {
 case 'historico': {
   console.log("Processando comando 'historico'...");
 
-  // Extrair datas (formato: DD/MM ou DD/MM/AAAA)
-  let dataInicio = parametros?.dataInicio || "";
-  let dataFim = parametros?.dataFim || "";
+  // Extrair todos os parâmetros de uma vez
+  const { 
+    tipo = "todos",
+    categoria = "",
+    dataInicio: dataInicioParam = "",
+    dataFim: dataFimParam = ""
+  } = parametros || {};
 
-  // Adicionar ano atual se não estiver especificado
+  // Processar datas
   const anoAtual = new Date().getFullYear();
+  let dataInicio = dataInicioParam;
+  let dataFim = dataFimParam;
+
+  // Adicionar ano se necessário (para formatos DD/MM)
   if (dataInicio && dataInicio.length <= 5) dataInicio += `/${anoAtual}`;
   if (dataFim && dataFim.length <= 5) dataFim += `/${anoAtual}`;
-  
-  // Obter parâmetros
-  const tipoFiltro = parametros?.tipo || "todos";
-  const categoriaFiltro = parametros?.categoria || "";
-  const dataInicio = parametros?.dataInicio || "";
-  const dataFim = parametros?.dataFim || "";
 
-  // Chamar a API
+  // Chamar API com todos os parâmetros
   const response = await axios.get(
-    `${WEB_APP_URL}?action=historico&dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`
+    `${WEB_APP_URL}?action=historico` + 
+    `&tipo=${encodeURIComponent(tipo)}` +
+    `&categoria=${encodeURIComponent(categoria)}` +
+    `&dataInicio=${encodeURIComponent(dataInicio)}` +
+    `&dataFim=${encodeURIComponent(dataFim)}`
   );
   
   const historico = response.data.historico;
@@ -1009,7 +1015,7 @@ case 'historico': {
     return;
   }
 
-  // Formatar a resposta com numeração
+  // Formatar resposta
   let mensagem = "📜 *Histórico de Transações*:\n\n";
   historico.forEach((transacao, index) => {
     mensagem += `${index + 1} - 📅 *${transacao.data}* - ${transacao.tipo}\n`;

@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbysuLZcEpjxOCm9lRIchMRWRNaoDcFDTUfJnguh6ESPvXVqKRRsZdDNeRvlr-ieM01fkA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxiAFF_3c9ZN1E5a6vPxx31yZ6d9XJ04v8W3cph6XhdVxEXIUr4j5djA-aqks_MHoo_yA/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -982,7 +982,7 @@ if (texto.toLowerCase() === "!id") {
 case 'historico': {
   console.log("Processando comando 'historico'...");
 
-  // Extrair todos os parâmetros de uma vez
+  // Extrair parâmetros
   const { 
     tipo = "todos",
     categoria = "",
@@ -994,20 +994,11 @@ case 'historico': {
   const anoAtual = new Date().getFullYear();
   let dataInicio = dataInicioParam;
   let dataFim = dataFimParam;
-
-  // Adicionar ano se necessário (para formatos DD/MM)
   if (dataInicio && dataInicio.length <= 5) dataInicio += `/${anoAtual}`;
   if (dataFim && dataFim.length <= 5) dataFim += `/${anoAtual}`;
 
-  // Chamar API com todos os parâmetros
-  const response = await axios.get(
-    `${WEB_APP_URL}?action=historico` + 
-    `&tipo=${encodeURIComponent(tipo)}` +
-    `&categoria=${encodeURIComponent(categoria)}` +
-    `&dataInicio=${encodeURIComponent(dataInicio)}` +
-    `&dataFim=${encodeURIComponent(dataFim)}`
-  );
-  
+  // Chamar API
+  const response = await axios.get(`${WEB_APP_URL}?action=historico&tipo=${tipo}&categoria=${categoria}&dataInicio=${dataInicio}&dataFim=${dataFim}`);
   const historico = response.data.historico;
 
   if (historico.length === 0) {
@@ -1015,16 +1006,15 @@ case 'historico': {
     return;
   }
 
-  // Formatar resposta
+  // Formatar mensagem com IDs fixos
   let mensagem = "📜 *Histórico de Transações*:\n\n";
-  historico.forEach((transacao, index) => {
-    mensagem += `${index + 1} - 📅 *${transacao.data}* - ${transacao.tipo}\n`;
-    mensagem += `💵 *Valor*: R$ ${transacao.valor}\n`;
-    mensagem += `🏷️ *Categoria*: ${transacao.categoria || "Sem categoria"}\n\n`;
+  historico.forEach(transacao => {
+    mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data} - ${transacao.tipo}\n`;
+    mensagem += `💵 Valor: R$ ${transacao.valor}\n`;
+    mensagem += `🏷️ Categoria: ${transacao.categoria || "Sem categoria"}\n\n`;
   });
 
-  mensagem += "\n❌ Para excluir: use `excluir [número(s)]` (ex: `excluir 2,5`)";
-
+  mensagem += "\n❌ Para excluir: `excluir [ID]` (ex: `excluir 5,7`)";
   await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
   break;
 }

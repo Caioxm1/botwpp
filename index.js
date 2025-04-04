@@ -779,41 +779,35 @@ if (texto.toLowerCase() === "!id") {
 
 case 'análise': {
   console.log("Processando comando 'análise'...");
-  console.log("Dados recebidos da API:", JSON.stringify(dados, null, 2));
   try {
+    // Adicione logs para depuração
+    console.log("Iniciando requisição para a API...");
     const response = await axios.get(`${WEB_APP_URL}?action=analiseGastos`);
+    console.log("Resposta da API recebida:", JSON.stringify(response.data));
+    
     const dados = response.data;
 
-    // Verificar se a API retornou erro
+    // Validação dos dados
     if (!dados.success) {
-      throw new Error(dados.error || "Erro desconhecido na API");
+      throw new Error(dados.error || "Erro na análise");
     }
 
-    // Validar estrutura dos dados
-    if (
-      !dados.categorias || 
-      !dados.insights || 
-      typeof dados.totalEntradas !== 'string' ||
-      typeof dados.totalSaidas !== 'string'
-    ) {
-      throw new Error("Formato de dados inválido da API");
-    }
-
-    // Construir mensagem
-    let mensagem = `📊 *Análise de Gastos Inteligente* 📊\n\n`;
-    mensagem += `✅ *Entradas Totais*: R$ ${dados.totalEntradas}\n`;
-    mensagem += `❌ *Saídas Totais*: R$ ${dados.totalSaidas}\n`;
-    mensagem += `💰 *Saldo Final*: R$ ${dados.saldo}\n\n`;
-
-    mensagem += `📌 *Categorias Mais Gastas*:\n`;
+    // Formatar mensagem
+    let mensagem = `📊 *Análise de Gastos* 📊\n\n`;
+    mensagem += `✅ Entradas: R$ ${dados.totalEntradas}\n`;
+    mensagem += `❌ Saídas: R$ ${dados.totalSaidas}\n`;
+    mensagem += `💰 Saldo: R$ ${dados.saldo}\n\n`;
+    
+    mensagem += `📌 *Top Gastos*:\n`;
     dados.categorias.forEach((cat, index) => {
       mensagem += `${index + 1}. ${cat.nome}: R$ ${cat.valor} (${cat.porcentagem}%)\n`;
     });
 
     mensagem += `\n🔍 *Insights*:\n${dados.insights.join('\n')}`;
 
+    console.log("Mensagem formatada:", mensagem); // Log da mensagem final
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
-
+    
   } catch (error) {
     console.error("Erro na análise:", error);
     await sock.sendMessage(msg.key.remoteJid, { 

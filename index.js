@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxFxhOkJ0H8M3H3jLCTaWosU9BNwWW8Mg54KNCmI_rzQN41m7R-O388Rs9wMmYnGiFjcA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyVxPVcI1u_cEFZ_hEykXlsmCSX1hKpwYndtU1FF0-ZfkCH56O4KFsONR7ITdMmOUg7lA/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -779,15 +779,27 @@ if (texto.toLowerCase() === "!id") {
 
 case 'análise': {
   console.log("Processando comando 'análise'...");
+  console.log("Dados recebidos da API:", JSON.stringify(dados, null, 2));
   try {
     const response = await axios.get(`${WEB_APP_URL}?action=analiseGastos`);
     const dados = response.data;
 
-    // Validação crítica!
-    if (!dados.categorias || !dados.insights) {
-      throw new Error("Dados incompletos da API");
+    // Verificar se a API retornou erro
+    if (!dados.success) {
+      throw new Error(dados.error || "Erro desconhecido na API");
     }
 
+    // Validar estrutura dos dados
+    if (
+      !dados.categorias || 
+      !dados.insights || 
+      typeof dados.totalEntradas !== 'string' ||
+      typeof dados.totalSaidas !== 'string'
+    ) {
+      throw new Error("Formato de dados inválido da API");
+    }
+
+    // Construir mensagem
     let mensagem = `📊 *Análise de Gastos Inteligente* 📊\n\n`;
     mensagem += `✅ *Entradas Totais*: R$ ${dados.totalEntradas}\n`;
     mensagem += `❌ *Saídas Totais*: R$ ${dados.totalSaidas}\n`;
@@ -798,16 +810,14 @@ case 'análise': {
       mensagem += `${index + 1}. ${cat.nome}: R$ ${cat.valor} (${cat.porcentagem}%)\n`;
     });
 
-    mensagem += `\n🔍 *Insights*:\n`;
-    dados.insights.forEach(insight => {
-      mensagem += `${insight}\n`;
-    });
+    mensagem += `\n🔍 *Insights*:\n${dados.insights.join('\n')}`;
 
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+
   } catch (error) {
     console.error("Erro na análise:", error);
     await sock.sendMessage(msg.key.remoteJid, { 
-      text: "❌ Erro ao gerar análise. Verifique os dados ou tente mais tarde." 
+      text: `❌ Falha na análise: ${error.message}`
     });
   }
   break;

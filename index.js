@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxiAFF_3c9ZN1E5a6vPxx31yZ6d9XJ04v8W3cph6XhdVxEXIUr4j5djA-aqks_MHoo_yA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwZhMUPs-WMC4afDFCyvh6ZwfK9zTk8giCF3I4EZxpOruuKj31HW7vJ_mTGIC1oxQ3ZGQ/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -69,6 +69,9 @@ const LISTA_DE_COMANDOS = `
 - adicionar pedido [cliente] [produto] [quantidade] [precoUnitario]: Registra um novo pedido para um cliente com detalhes do produto, quantidade e preço.
 - consultar pedidos [cliente] [data]: Consulta todos os pedidos de um cliente (opcional: filtra por data). Sinônimos: "lista de pedidos", "ver pedidos", "pedidos do cliente".
 - listar clientes: Mostra todos os clientes cadastrados no sistema. Sinônimos: "meus clientes", "clientes registrados", "quais são meus clientes".
+
+📈 *Análise Inteligente*
+- análise: Gera uma análise detalhada dos gastos e insights financeiros.
 
 📊 *Gráficos e Estatísticas*
 - média: Mostra a média de entradas.
@@ -142,6 +145,20 @@ async function interpretarMensagemComOpenRouter(texto) {
             - adicionar pedido [cliente] [produto] [quantidade] [precoUnitario]: Registra um pedido para um cliente.
             - consultar pedidos [cliente] [data]: *Sinônimos* → "lista de pedidos", "ver pedidos", "pedidos do cliente".
             - listar clientes: *Sinônimos* → "meus clientes", "clientes registrados", "quais são meus clientes".
+            - análise: Gera uma análise detalhada dos gastos.
+
+            **Exemplo:**
+            - Mensagem: 'Como estão meus gastos este mês?'
+            - JSON: { "comando": "análise" }
+            
+            - Mensagem: "Quero uma análise financeira"
+            - JSON: { "comando": "análise" }
+            
+            - Mensagem: "Mostre meus gastos"
+            - JSON: { "comando": "análise" }
+            
+            - Mensagem: "Faça uma análise financeira"
+            - JSON: { "comando": "análise" }
 
             **Exemplo:**
             - Mensagem: 'Quais clientes têm pedidos?'
@@ -741,6 +758,39 @@ if (texto.toLowerCase() === "!id") {
       // Processa o comando financeiro
       switch (comando) {
 
+case 'análise': {
+  console.log("Processando comando 'análise'...");
+  try {
+    // Obter dados da API
+    const response = await axios.get(`${WEB_APP_URL}?action=analiseGastos`);
+    const dados = response.data;
+
+    // Formatar a resposta
+    let mensagem = `📊 *Análise de Gastos Inteligente* 📊\n\n`;
+    mensagem += `✅ *Entradas Totais*: R$ ${dados.totalEntradas}\n`;
+    mensagem += `❌ *Saídas Totais*: R$ ${dados.totalSaidas}\n`;
+    mensagem += `💰 *Saldo Final*: R$ ${dados.saldo}\n\n`;
+
+    mensagem += `📌 *Categorias Mais Gastas*:\n`;
+    dados.categorias.forEach((cat, index) => {
+      mensagem += `${index + 1}. ${cat.nome}: R$ ${cat.valor} (${cat.porcentagem}%)\n`;
+    });
+
+    mensagem += `\n🔍 *Insights*:\n`;
+    dados.insights.forEach(insight => {
+      mensagem += `📌 ${insight}\n`;
+    });
+
+    await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+  } catch (error) {
+    console.error("Erro na análise:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao gerar análise. Tente novamente mais tarde." 
+    });
+  }
+  break;
+}
+          
         case 'listar clientes': {
           console.log("Processando comando 'listar clientes'...");
           const response = await axios.get(`${WEB_APP_URL}?action=listarClientes`);

@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTzr4dvLoskFLAEvvIScACMv5mPAoKESyADjnpOm-1CT44kBnrwKWl3oPRjvpK5EXwIQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxFxhOkJ0H8M3H3jLCTaWosU9BNwWW8Mg54KNCmI_rzQN41m7R-O388Rs9wMmYnGiFjcA/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -780,11 +780,14 @@ if (texto.toLowerCase() === "!id") {
 case 'análise': {
   console.log("Processando comando 'análise'...");
   try {
-    // Obter dados da API
     const response = await axios.get(`${WEB_APP_URL}?action=analiseGastos`);
     const dados = response.data;
 
-    // Formatar a resposta
+    // Validação crítica!
+    if (!dados.categorias || !dados.insights) {
+      throw new Error("Dados incompletos da API");
+    }
+
     let mensagem = `📊 *Análise de Gastos Inteligente* 📊\n\n`;
     mensagem += `✅ *Entradas Totais*: R$ ${dados.totalEntradas}\n`;
     mensagem += `❌ *Saídas Totais*: R$ ${dados.totalSaidas}\n`;
@@ -797,14 +800,14 @@ case 'análise': {
 
     mensagem += `\n🔍 *Insights*:\n`;
     dados.insights.forEach(insight => {
-      mensagem += `📌 ${insight}\n`;
+      mensagem += `${insight}\n`;
     });
 
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
   } catch (error) {
     console.error("Erro na análise:", error);
     await sock.sendMessage(msg.key.remoteJid, { 
-      text: "❌ Erro ao gerar análise. Tente novamente mais tarde." 
+      text: "❌ Erro ao gerar análise. Verifique os dados ou tente mais tarde." 
     });
   }
   break;

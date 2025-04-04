@@ -147,7 +147,17 @@ async function interpretarMensagemComOpenRouter(texto) {
             - listar clientes: *Sinônimos* → "meus clientes", "clientes registrados", "quais são meus clientes".
             - análise: Gera uma análise detalhada dos gastos.
 
-            **Exemplo:**
+
+            **Exemplo para "análise":**
+            - Mensagem: "Quero uma análise dos meus gastos"
+            - JSON: { "comando": "análise" }
+            
+            - Mensagem: "analise financeira"
+            - JSON: { "comando": "análise" }
+            
+            - Mensagem: "Como estão meus gastos?"
+            - JSON: { "comando": "análise" }
+            
             - Mensagem: 'Como estão meus gastos este mês?'
             - JSON: { "comando": "análise" }
             
@@ -160,13 +170,18 @@ async function interpretarMensagemComOpenRouter(texto) {
             - Mensagem: "Faça uma análise financeira"
             - JSON: { "comando": "análise" }
 
-            **Exemplo:**
+            **Exemplo para "listar clientes":**
             - Mensagem: 'Quais clientes têm pedidos?'
             - JSON: {"comando": "listar clientes" }"
           
             - Mensagem: "Meus clientes"  
             - JSON: {"comando": "listar clientes" }"
 
+            - Mensagem: "Quais são os meus cliente"  
+            - JSON: {"comando": "listar clientes" }"
+            
+            - Mensagem: "Mostre meus clientes"  
+            - JSON: {"comando": "listar clientes" }"
 
             **Instruções Especiais para Pedidos:**
             - Se a mensagem incluir algo como 'consultar pedidos', 'consultar pedido', 'ver pedidos' ou 'listar pedidos', extraia:
@@ -394,6 +409,10 @@ function interpretarMensagemManual(texto) {
         }
       };
     }
+
+if (texto.toLowerCase().includes("análise") || texto.toLowerCase().includes("analise")) {
+  return { comando: "análise" };
+}
   
     // Mapeamento de palavras-chave para categorias
   const categorias = {

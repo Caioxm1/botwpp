@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwZhMUPs-WMC4afDFCyvh6ZwfK9zTk8giCF3I4EZxpOruuKj31HW7vJ_mTGIC1oxQ3ZGQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTzr4dvLoskFLAEvvIScACMv5mPAoKESyADjnpOm-1CT44kBnrwKWl3oPRjvpK5EXwIQ/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -602,7 +602,7 @@ async function gerarGrafico(tipo, dados) {
 // Função para verificar se a mensagem parece ser um comando financeiro
 function pareceSerComandoFinanceiro(texto) {
   const palavrasChaveFinanceiras = [
-    "resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
+    "análise", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
     "orçamento", "dívida", "lembrete", "histórico", "excluir", "comprei", "gastei", 
     "paguei", "transferir", "saldo", "meta", "valor", "reais", "R$",
     "consultar pedidos", "ver pedidos", "listar pedidos", "lista de pedidos", "pedidos do cliente", "ver pedidos",

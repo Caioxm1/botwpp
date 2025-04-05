@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw-Sk9iA-mAVxMX9T0CNB5NfgVnpESvgB77fMQxuQBJ_XxUFYL2oLp7wJBJU7f1TFLZzw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby-T2rep9vii3KyAMlkABLsJvS1kim6pBtgJ0f_NsVrxVXpKLxxM7Hr_hwyfjzy0tVjTg/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -844,7 +844,7 @@ case 'dívida pagar': {
   // Supondo que "numero" seja 4 e a planilha tenha cabeçalho na linha 1
   const linhaDesejada = numero + 1;
   // Acessando a linha correta no Google Sheets
-  await sheet.getRange(`A${linhaDesejada}:Z${linhaDesejada}`).updateValues(...);
+  await sheet.getRange(`A${linhaDesejada}:Z${linhaDesejada}`).updateValues([[valor1, valor2, ...]]);
     break;
   }
 
@@ -884,15 +884,6 @@ case 'dívida listar': {
     const response = await axios.get(`${WEB_APP_URL}?action=listarDividasFiltro&filtro=${filtro}&categoria=${categoria}`);
   const dividas = response.data.dividas;
 
-    // Formate a mensagem com IDs fixos
-  let mensagem = "📋 *Lista de Dívidas* 📋\n\n";
-  dividas.forEach(d => {
-    mensagem += `🆔 *${d.id - 1}* - ${d.credor}\n`; // Exibe ID ajustado (opcional)
-    mensagem += `💵 Valor: R$ ${d.valor.toFixed(2)}\n`;
-    mensagem += `📅 Vencimento: ${d.vencimento}\n`;
-    mensagem += `⚠️ Status: ${d.status}\n\n`;
-  });
-
     // Verifique a estrutura da resposta
     if (!response.data.success || !Array.isArray(response.data.dividas)) {
       throw new Error('Resposta inválida da API');
@@ -920,11 +911,11 @@ case 'dívida listar': {
   }
   
   mensagem +=
-`⚫ #${d.id} - ${d.credor}
-   💵 Valor: R$ ${d.valor.toFixed(2).replace(".", ",")}
-   📅 Vencimento: ${d.vencimento}
-   🏷️ Categoria: ${d.categoria}
-   ⚠️ Status: ${statusMsg}\n\n`;
+`🆔 *${d.id - 1}* - ${d.credor}\n`;
+   💵 Valor: R$ ${d.valor.toFixed(2)}\n`;
+   📅 Vencimento: ${d.vencimento}\n`;
+   🏷️ Categoria: ${d.categoria}\n`;
+   ⚠️ Status: ${d.status}\n\n`;
 });
 
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });

@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwRN5n_UxMIDlA68Vcuu4ChXWCjyuOk7_cCT1cUMuZKUryt7om3FFvVhrsN5bdrMQNdtA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwaK6F2KfY-8fPl2Q4rg-kMVpbHAFROmc7emgxP2lSPHkGwMDpDei9Ap1T8YRc7XxpWhg/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -839,14 +839,21 @@ if (texto.toLowerCase() === "!id") {
 
 case 'dívida pagar': {
   const numero = parametros.numero;
-  const response = await axios.get(`${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}`);
-  await sock.sendMessage(msg.key.remoteJid, { text: response.data });
-  // Supondo que "numero" seja 4 e a planilha tenha cabeçalho na linha 1
-  const linhaDesejada = numero + 1;
-  // Acessando a linha correta no Google Sheets
-  await sheet.getRange(`A${linhaDesejada}:Z${linhaDesejada}`).updateValues([[valor1, valor2, ...]]);
-    break;
-  }
+  const linhaPlanilha = numero + 1; // A linha 1 é o cabeçalho
+  const hoje = new Date();
+  
+  // Formatar datas para o padrão do Google Sheets (YYYY-MM-DD)
+  const dataPagamento = Utilities.formatDate(hoje, Session.getScriptTimeZone(), "DD-MM-YYYY");
+
+  // Atualizar APENAS as colunas G (Status) e H (Data Pagamento)
+  const range = dividasSheet.getRange(`G${linhaPlanilha}:H${linhaPlanilha}`);
+  range.setValues([["Paga", dataPagamento]]);
+
+  await sock.sendMessage(msg.key.remoteJid, { 
+    text: `✅ Dívida #${numero} marcada como paga em ${dataPagamento}.` 
+  });
+  break;
+}
 
 case 'dívida excluir': {
   const numero = parametros.numero;

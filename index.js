@@ -750,9 +750,6 @@ if (texto.toLowerCase() === "!id") {
   });
   return;
 }
-
-// Novo: Ignora mensagens enviadas pelo próprio bot
-  if (msg.key.fromMe) return; // ✅ Impede auto-respostas
       
   console.log("Texto da mensagem:", texto);
 

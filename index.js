@@ -836,37 +836,48 @@ case 'dívida detalhes': {
 }
 
 case 'dívida listar': {
-  let filtro = '';
-  let categoria = '';
-  
-  if (parametros.filtro === 'atrasadas') filtro = 'atrasadas';
-  if (parametros.filtro === 'pagas') filtro = 'pagas';
-  if (parametros.categoria) categoria = parametros.categoria;
+  try {
+    // Verifica e define parâmetros padrão
+    const { filtro = '', categoria = '' } = parametros || {};
 
-  const response = await axios.get(
-    `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${filtro}&categoria=${categoria}`
-  );
-  
-  const dividas = response.data;
-  if (dividas.length === 0) {
-    await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhuma dívida encontrada com esses filtros." });
-    break;
-  }
-
-  let mensagem = "📋 *Lista de Dívidas* 📋\n\n";
-  dividas.forEach(d => {
-    const status = d.status === 'Paga' ? '✅' : 
-      (d.diasRestantes < 0 ? '🔴 (Atrasada)' : `🟡 (${d.diasRestantes} dias)`);
+    // Chama a API corretamente
+    const response = await axios.get(
+      `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${encodeURIComponent(filtro)}&categoria=${encodeURIComponent(categoria)}`
+    );
     
-    mensagem +=
-`⚫ #${d.id} - ${d.credor}
-   💵 R$ ${d.valor}
-   📅 ${d.vencimento}
-   🏷️ ${d.categoria}
-   ⚠️ Status: ${status}\n\n`;
-  });
+    const dividas = response.data;
 
-  await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+    if (!dividas || dividas.length === 0) {
+      await sock.sendMessage(msg.key.remoteJid, { 
+        text: "📭 Nenhuma dívida encontrada com esses filtros." 
+      });
+      break;
+    }
+
+    // Formata a mensagem
+    let mensagem = "📋 *Lista de Dívidas* 📋\n\n";
+    
+    dividas.forEach(d => {
+      const status = d.status === 'Paga' ? '✅ Paga' : 
+        (d.diasRestantes < 0 ? `🔴 Atrasada (${Math.abs(d.diasRestantes)} dias)` : 
+        `🟡 Pendente (${d.diasRestantes} dias)`);
+      
+      mensagem +=
+`⚫ #${d.id} - ${d.credor}
+   💵 Valor: R$ ${d.valor}
+   📅 Vencimento: ${d.vencimento}
+   🏷️ Categoria: ${d.categoria}
+   ⚠️ Status: ${status}\n\n`;
+    });
+
+    await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+    
+  } catch (error) {
+    console.error("Erro ao listar dívidas:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao listar dívidas. Verifique os parâmetros e tente novamente." 
+    });
+  }
   break;
 }
 

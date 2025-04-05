@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbydajrLpz-XSvqlKkryCLab40Z1KtRgsapPIiDghQ_hV-4-WR9-z9f__P5mfZC9pI0T/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzla-nMFWvtdTA-M3Yrv240u8BfubMHStAxS3zh-sO5_SXchj9VQtApQxjrtGJsU2fyxg/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -850,32 +850,12 @@ case 'dívida detalhes': {
   break;
 }
 
-        case 'dívida listar':
-          console.log("Processando comando 'dívida listar'...");
-          const responseDividas = await axios.get(`${WEB_APP_URL}?action=listarDividas`);
-          const dividas = responseDividas.data.dividas;
-          if (dividas.length === 0) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhuma dívida cadastrada." });
-          } else {
-            const listaDividas = dividas.map(d => `${d.id}. ${d.credor}: R$ ${d.valor} (Vencimento: ${d.vencimento})`).join('\n');
-            await sock.sendMessage(msg.key.remoteJid, { text: `📌 Dívidas:\n${listaDividas}` });
-          }
-          break;
-
           
 case 'dívida listar': {
   try {
-    // Extrai parâmetros corretamente
-    const filtro = parametros.filtro || '';
-    const categoria = parametros.categoria || '';
-
-    const response = await axios.get(
-      `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${encodeURIComponent(filtro)}&categoria=${encodeURIComponent(categoria)}`
-    );
-    // Garanta parâmetros padrão
+    // Extrai parâmetros corretamente usando destructuring com valores padrão
     const { filtro = '', categoria = '' } = parametros || {};
 
-    // Faça a chamada à API
     const response = await axios.get(
       `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${encodeURIComponent(filtro)}&categoria=${encodeURIComponent(categoria)}`
     );

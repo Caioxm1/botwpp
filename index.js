@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyH2WlTeoTHD-Ti00sbBBjGIWNsT0ES-gHFOuNXO1Jx_GymGZmDUKELyYYcyZ72nGzSCQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwWcfdBjr6sao6VK0Ng8QX_asSJ_UW0XJgR2VgHsyS_AhZoKucjsCX3bpTjoil8mvnwrw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -839,14 +839,14 @@ if (texto.toLowerCase() === "!id") {
 
 case 'dívida pagar': {
   const numero = parametros.número;
-  
-  // Chamada para a API do Google Apps Script
+  const semSaida = texto.toLowerCase().includes('--sem-saida'); // Verifica o parâmetro
+
   const response = await axios.get(
-    `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}`
+    `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}&semSaida=${semSaida}`
   );
 
   await sock.sendMessage(msg.key.remoteJid, { 
-    text: response.data // Ex: "✅ Dívida #4 marcada como paga em 2024-05-05"
+    text: response.data
   });
   break;
 }

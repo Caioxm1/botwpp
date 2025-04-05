@@ -733,7 +733,7 @@ if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
     // Verifica se a mensagem é antiga (mais de 60 segundos)
     const mensagemTimestamp = msg.messageTimestamp;
     const agora = Math.floor(Date.now() / 1000);
-    if (agora - mensagemTimestamp > 3) {
+    if (agora - mensagemTimestamp > 60) {
       console.log("Mensagem ignorada (é uma mensagem antiga).");
       return;
     }
@@ -750,9 +750,20 @@ if (texto.toLowerCase() === "!id") {
   });
   return;
 }
-  if (ultimoComandoProcessado === texto) return;
-  ultimoComandoProcessado = texto;
 
+// Novo: Ignora mensagens enviadas pelo próprio bot
+  if (msg.key.fromMe) return; // ✅ Impede auto-respostas
+
+// Controle de flood
+    const agora = Date.now();
+    if (ultimosComandos.has(remetente) && (agora - ultimosComandos.get(remetente)) < 3000) {
+      await sock.sendMessage(msg.key.remoteJid, { 
+        text: "⏳ Aguarde 5 segundos antes de enviar outro comando" 
+      });
+      return;
+    }
+    ultimosComandos.set(remetente, agora);
+      
   console.log("Texto da mensagem:", texto);
 
   

@@ -850,6 +850,19 @@ case 'dívida detalhes': {
   break;
 }
 
+        case 'dívida listar':
+          console.log("Processando comando 'dívida listar'...");
+          const responseDividas = await axios.get(`${WEB_APP_URL}?action=listarDividas`);
+          const dividas = responseDividas.data.dividas;
+          if (dividas.length === 0) {
+            await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhuma dívida cadastrada." });
+          } else {
+            const listaDividas = dividas.map(d => `${d.id}. ${d.credor}: R$ ${d.valor} (Vencimento: ${d.vencimento})`).join('\n');
+            await sock.sendMessage(msg.key.remoteJid, { text: `📌 Dívidas:\n${listaDividas}` });
+          }
+          break;
+
+          
 case 'dívida listar': {
   try {
     // Extrai parâmetros corretamente

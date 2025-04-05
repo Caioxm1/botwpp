@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby0tZfwx_yaEY0g2748o876WZBEzMpliLucRYDmUBIIANLj0FAEK9H-jV0t4kx263za/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw-Sk9iA-mAVxMX9T0CNB5NfgVnpESvgB77fMQxuQBJ_XxUFYL2oLp7wJBJU7f1TFLZzw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -841,8 +841,12 @@ case 'dívida pagar': {
   const numero = parametros.numero;
   const response = await axios.get(`${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}`);
   await sock.sendMessage(msg.key.remoteJid, { text: response.data });
-  break;
-}
+  // Supondo que "numero" seja 4 e a planilha tenha cabeçalho na linha 1
+  const linhaDesejada = numero + 1;
+  // Acessando a linha correta no Google Sheets
+  await sheet.getRange(`A${linhaDesejada}:Z${linhaDesejada}`).updateValues(...);
+    break;
+  }
 
 case 'dívida excluir': {
   const numero = parametros.numero;
@@ -877,9 +881,17 @@ case 'dívida listar': {
     // Extrai parâmetros corretamente usando destructuring com valores padrão
     const { filtro = '', categoria = '' } = parametros || {};
 
-    const response = await axios.get(
-      `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${encodeURIComponent(filtro)}&categoria=${encodeURIComponent(categoria)}`
-    );
+    const response = await axios.get(`${WEB_APP_URL}?action=listarDividasFiltro&filtro=${filtro}&categoria=${categoria}`);
+  const dividas = response.data.dividas;
+
+    // Formate a mensagem com IDs fixos
+  let mensagem = "📋 *Lista de Dívidas* 📋\n\n";
+  dividas.forEach(d => {
+    mensagem += `🆔 *${d.id - 1}* - ${d.credor}\n`; // Exibe ID ajustado (opcional)
+    mensagem += `💵 Valor: R$ ${d.valor.toFixed(2)}\n`;
+    mensagem += `📅 Vencimento: ${d.vencimento}\n`;
+    mensagem += `⚠️ Status: ${d.status}\n\n`;
+  });
 
     // Verifique a estrutura da resposta
     if (!response.data.success || !Array.isArray(response.data.dividas)) {

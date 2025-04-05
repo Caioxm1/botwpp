@@ -283,7 +283,7 @@ async function interpretarMensagemComOpenRouter(texto) {
           'HTTP-Referer': 'http://localhost',
           'X-Title': 'Bot Financeiro'
         },
-        timeout: 10000 // 10 segundos de timeout
+        timeout: 3000 // 10 segundos de timeout
       }
     );
 
@@ -621,7 +621,7 @@ let sock = null;
 async function iniciarConexaoWhatsApp() {
 const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   
-  const sock = makeWASocket({
+  sock = makeWASocket({
     auth: state,
     printQRInTerminal: true,
     syncFullHistory: false,
@@ -733,7 +733,7 @@ if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
     // Verifica se a mensagem é antiga (mais de 60 segundos)
     const mensagemTimestamp = msg.messageTimestamp;
     const agora = Math.floor(Date.now() / 1000);
-    if (agora - mensagemTimestamp > 60) {
+    if (agora - mensagemTimestamp > 3) {
       console.log("Mensagem ignorada (é uma mensagem antiga).");
       return;
     }

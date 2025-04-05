@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwYwBamURUVlLcjMO7FBtfBzBizBhHzV6_ZDpeomvIhp0Xh2rv2Vz0Gq0q3QySjb1NqDA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyh2PcUxa4vppPbfDZQw1x7QL6cvsqtWjqKVnmTicRMqdLTRRHGaI7TmSjBkr1HNMiT8Q/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -180,6 +180,21 @@ async function interpretarMensagemComOpenRouter(texto) {
             
             - Mensagem: "dívida listar fornecedores"
               JSON: { "comando": "dívida listar", "parametros": { "categoria": "fornecedor" } }
+
+
+
+            **Exemplo com --sem-saida:**
+            - Mensagem: "divida pagar 4 --sem-saida"
+            JSON: { "comando": "dívida pagar", "parametros": { "número": 4, "semSaida": true } }
+          
+            - Mensagem: "pagar dívida 2 sem registrar saída"
+            JSON: { "comando": "dívida pagar", "parametros": { "número": 2, "semSaida": true } }
+            - Mensagem: "paguei a dívida 4 sem tirar do meu dinheiro"
+            JSON: { "comando": "dívida pagar", "parametros": { "número": 4, "semSaida": true } }
+            - Mensagem: "pagaram pra mim a dívida 3"
+            JSON: { "comando": "dívida pagar", "parametros": { "número": 3, "semSaida": true } }
+
+
 
 
               **Exemplo para "dívida adicionar":**
@@ -839,7 +854,7 @@ if (texto.toLowerCase() === "!id") {
 
 case 'dívida pagar': {
   const numero = parametros.número;
-  const semSaida = texto.toLowerCase().includes('sem saída'); // Verifica o parâmetro
+  const semSaida = parametros.semSaida || false; // ✅ Captura a flag corretamente
 
   const response = await axios.get(
     `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}&semSaida=${semSaida}`

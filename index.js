@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyTGByUx4WE0ME05-noFxtDBE3baSc8qBJYIySLt8WWzuUbRGtjfAnSHTJSBnfkVftwjg/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyq6BDF5FvO1P1hzkQc-RDgH_qOLQ89osDy_Jh1d2rvCSOXLQwP-6JvoV355uR7mqiS/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -837,26 +837,30 @@ case 'dívida detalhes': {
 
 case 'dívida listar': {
   try {
-    // Verifica e define parâmetros padrão
+    // Garanta parâmetros padrão
     const { filtro = '', categoria = '' } = parametros || {};
 
-    // Chama a API corretamente
+    // Faça a chamada à API
     const response = await axios.get(
       `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${encodeURIComponent(filtro)}&categoria=${encodeURIComponent(categoria)}`
     );
-    
-    const dividas = response.data;
 
-    if (!dividas || dividas.length === 0) {
+    // Verifique a estrutura da resposta
+    if (!response.data.success || !Array.isArray(response.data.dividas)) {
+      throw new Error('Resposta inválida da API');
+    }
+
+    const dividas = response.data.dividas;
+
+    if (dividas.length === 0) {
       await sock.sendMessage(msg.key.remoteJid, { 
         text: "📭 Nenhuma dívida encontrada com esses filtros." 
       });
       break;
     }
 
-    // Formata a mensagem
+    // Formate a mensagem
     let mensagem = "📋 *Lista de Dívidas* 📋\n\n";
-    
     dividas.forEach(d => {
       const status = d.status === 'Paga' ? '✅ Paga' : 
         (d.diasRestantes < 0 ? `🔴 Atrasada (${Math.abs(d.diasRestantes)} dias)` : 
@@ -873,9 +877,13 @@ case 'dívida listar': {
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
     
   } catch (error) {
-    console.error("Erro ao listar dívidas:", error);
+    console.error("Erro detalhado:", {
+      error: error.message,
+      response: error.response?.data
+    });
+    
     await sock.sendMessage(msg.key.remoteJid, { 
-      text: "❌ Erro ao listar dívidas. Verifique os parâmetros e tente novamente." 
+      text: "❌ Erro ao listar dívidas. Verifique o formato dos dados." 
     });
   }
   break;

@@ -603,10 +603,15 @@ async function gerarGrafico(tipo, dados) {
 function pareceSerComandoFinanceiro(texto) {
   const palavrasChaveFinanceiras = [
     "análise", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
-    "orçamento", "dívida", "lembrete", "histórico", "excluir", "comprei", "gastei", 
+    "orçamento", "dívida", "lembrete", "histórico", "historico", "lista de dividas",
+    "minha lista de dividas", "minha lista de dividas", "minhas dividas", "lista de orçamento", "meus orçamentos", 
+    "quais são os orçamentos", "me de os orçamentos", "me mostre os orçamentos", "mostre os orçamentos", 
+    "excluir", "comprei", "gastei", "qual é minhas dividas", "quais são minhas dividas", "quais as dividas", 
     "paguei", "transferir", "saldo", "meta", "valor", "reais", "R$",
-    "consultar pedidos", "ver pedidos", "listar pedidos", "lista de pedidos", "pedidos do cliente", "ver pedidos",
-    "listar clientes", "clientes registrados", "ver clientes", "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
+    "consultar pedidos", "ver pedidos", "listar pedidos",
+    "lista de pedidos", "pedidos do cliente", "ver pedidos",
+    "listar clientes", "clientes registrados", "ver clientes",
+    "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
   ];
 
   // Verifica se a mensagem contém alguma palavra-chave financeira

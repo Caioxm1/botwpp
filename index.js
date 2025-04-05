@@ -181,7 +181,28 @@ async function interpretarMensagemComOpenRouter(texto) {
             - Mensagem: "dívida listar fornecedores"
               JSON: { "comando": "dívida listar", "parametros": { "categoria": "fornecedor" } }
 
-              
+
+              **Exemplo para "dívida adicionar":**
+              - Mensagem: "adicionar dívida de 500 mercado 25/04/2025 alimentos"
+              JSON: { 
+                "comando": "dívida adicionar", 
+                "parametros": {
+                  "valor": 500,
+                  "credor": "mercado",
+                  "dataVencimento": "25/12/2024",
+                  "categoria": "Alimentação"
+                }
+              }
+              - Mensagem: "adicionar uma divida de 500 reais do mercado no dia 25/04/2025 na categoria alimentos"
+              JSON: { 
+                "comando": "dívida adicionar", 
+                "parametros": {
+                  "valor": 500,
+                  "credor": "mercado",
+                  "dataVencimento": "25/12/2024",
+                  "categoria": "Alimentação"
+                }
+              }
 
 
             **Exemplo para "análise":**

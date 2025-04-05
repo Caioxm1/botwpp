@@ -7,11 +7,12 @@ const express = require('express');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
 const app = express();
+const remetente = msg.pushName || "Usuário";
 app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxOdsdFidiHC4onUjWcKZpMoiq4OHk4HlDaup7IlfQqA9D_FNHVWg6tqpudREMF-F-whw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxfp-M5z_I34D87tWlbcWEgxgctFfj8fOvNbRcZxaSFbuOvx-O_6hfh-vmZRTrUt0al4w/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo

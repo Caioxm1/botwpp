@@ -168,6 +168,12 @@ async function interpretarMensagemComOpenRouter(texto) {
             - Mensagem: "listar dívidas de fornecedores"
               JSON: { "comando": "dívida listar", "parametros": { "categoria": "fornecedor" } }
 
+            - Mensagem: "listar dívidas"
+              JSON: { "comando": "dívida listar", "parametros": {} }
+              
+            - Mensagem: "listar dividas"
+              JSON: { "comando": "dívida listar", "parametros": {} }            
+
 
             **Exemplo para "análise":**
             - Mensagem: "Quero uma análise dos meus gastos"

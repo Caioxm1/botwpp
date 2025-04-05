@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzkRAE0pRdwmWUWLb1xObuhsi7xRObkbhq6WhbmNh9aQOIjjdUEGI3n68nSWmAO8S_rtg/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz-n1PURWkPzLdusjWog3it7cxV0k8xP0S-S85z4YTR83P7aTsL820QGtNj5aeNc-jQzw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo

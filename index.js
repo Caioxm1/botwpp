@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzB8uIEtcH5wjymaJ8QnS0g0OB-LvJC8-R435NBwHQar_SnnZefO_-iIK9KKgp7ln8ReA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxOdsdFidiHC4onUjWcKZpMoiq4OHk4HlDaup7IlfQqA9D_FNHVWg6tqpudREMF-F-whw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -855,7 +855,7 @@ if (texto.toLowerCase() === "!id") {
 case 'dívida pagar': {
   const numero = parametros.número;
   const semSaida = parametros.semSaida || false;
-  const remetente = msg.pushName; // Nome do remetente (ex: "Caio Eduardo")
+  const remetente = msg.pushName;
 
   const response = await axios.get(
     `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}&semSaida=${semSaida}&remetente=${encodeURIComponent(remetente)}`

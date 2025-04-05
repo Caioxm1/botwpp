@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyq6BDF5FvO1P1hzkQc-RDgH_qOLQ89osDy_Jh1d2rvCSOXLQwP-6JvoV355uR7mqiS/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbydajrLpz-XSvqlKkryCLab40Z1KtRgsapPIiDghQ_hV-4-WR9-z9f__P5mfZC9pI0T/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -89,13 +89,11 @@ const LISTA_DE_COMANDOS = `
 
 💳 *Dívidas*
 - dívida adicionar [valor] [credor] [dataVencimento]: Adiciona uma dívida.
-- dívida listar: Lista todas as dívidas.
 - dívida pagar [número]: Marca uma dívida como paga.
 - dívida excluir [número]: Remove uma dívida específica.
 - dívida detalhes [número]: Mostra informações completas.
-- dívida listar atrasadas: Mostra dívidas vencidas.
-- dívida listar pagas: Mostra dívidas quitadas.
-- dívida listar [categoria]: Filtra por categoria.
+- dívida listar [filtro]: Lista dívidas (opções: atrasadas, pagas)
+- dívida listar [categoria]: Filtra por categoria
 - dívida alerta [dias]: Configura alertas.
 
 ⏰ *Lembretes*
@@ -141,13 +139,13 @@ async function interpretarMensagemComOpenRouter(texto) {
             - orçamento listar: Lista todos os orçamentos.
             - orçamento excluir [número]: Exclui um orçamento específico.
             - dívida adicionar [valor] [credor] [dataVencimento]: Adiciona uma dívida.
-            - dívida listar: Lista todas as dívidas.
             - dívida pagar [número]: Marca uma dívida como paga.
             - dívida excluir [número]: Remove uma dívida específica.
             - dívida detalhes [número]: Mostra informações completas.
             - dívida listar atrasadas: Mostra dívidas vencidas.
             - dívida listar pagas: Mostra dívidas quitadas.
-            - dívida listar [categoria]: Filtra por categoria.
+            - dívida listar [filtro]: Lista dívidas (opções: atrasadas, pagas)
+            - dívida listar [categoria]: Filtra por categoria
             - dívida alerta [dias]: Configura alertas.
             - lembrete adicionar [descrição] [data]: Adiciona um lembrete.
             - lembrete listar: Lista todos os lembretes.
@@ -172,7 +170,18 @@ async function interpretarMensagemComOpenRouter(texto) {
               JSON: { "comando": "dívida listar", "parametros": {} }
               
             - Mensagem: "listar dividas"
-              JSON: { "comando": "dívida listar", "parametros": {} }            
+              JSON: { "comando": "dívida listar", "parametros": {} }   
+
+           - Mensagem: "dívida listar atrasadas"
+              JSON: { "comando": "dívida listar", "parametros": { "filtro": "atrasadas" } }
+          
+            - Mensagem: "dívida listar pagas"
+              JSON: { "comando": "dívida listar", "parametros": { "filtro": "pagas" } }
+            
+            - Mensagem: "dívida listar fornecedores"
+              JSON: { "comando": "dívida listar", "parametros": { "categoria": "fornecedor" } }
+
+              
 
 
             **Exemplo para "análise":**
@@ -843,6 +852,13 @@ case 'dívida detalhes': {
 
 case 'dívida listar': {
   try {
+    // Extrai parâmetros corretamente
+    const filtro = parametros.filtro || '';
+    const categoria = parametros.categoria || '';
+
+    const response = await axios.get(
+      `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${encodeURIComponent(filtro)}&categoria=${encodeURIComponent(categoria)}`
+    );
     // Garanta parâmetros padrão
     const { filtro = '', categoria = '' } = parametros || {};
 
@@ -1124,18 +1140,6 @@ case 'análise': {
           const dataVencimento = parametros.dataVencimento;
           await axios.get(`${WEB_APP_URL}?action=adicionarDivida&valor=${valorDivida}&credor=${credor}&dataVencimento=${dataVencimento}`);
           await sock.sendMessage(msg.key.remoteJid, { text: `✅ Dívida de R$ ${valorDivida} adicionada com ${credor}, vencendo em ${dataVencimento}.` });
-          break;
-
-        case 'dívida listar':
-          console.log("Processando comando 'dívida listar'...");
-          const responseDividas = await axios.get(`${WEB_APP_URL}?action=listarDividas`);
-          const dividas = responseDividas.data.dividas;
-          if (dividas.length === 0) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhuma dívida cadastrada." });
-          } else {
-            const listaDividas = dividas.map(d => `${d.id}. ${d.credor}: R$ ${d.valor} (Vencimento: ${d.vencimento})`).join('\n');
-            await sock.sendMessage(msg.key.remoteJid, { text: `📌 Dívidas:\n${listaDividas}` });
-          }
           break;
 
         case 'lembrete adicionar':

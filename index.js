@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwaK6F2KfY-8fPl2Q4rg-kMVpbHAFROmc7emgxP2lSPHkGwMDpDei9Ap1T8YRc7XxpWhg/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzkRAE0pRdwmWUWLb1xObuhsi7xRObkbhq6WhbmNh9aQOIjjdUEGI3n68nSWmAO8S_rtg/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -839,18 +839,14 @@ if (texto.toLowerCase() === "!id") {
 
 case 'dívida pagar': {
   const numero = parametros.numero;
-  const linhaPlanilha = numero + 1; // A linha 1 é o cabeçalho
-  const hoje = new Date();
   
-  // Formatar datas para o padrão do Google Sheets (YYYY-MM-DD)
-  const dataPagamento = Utilities.formatDate(hoje, Session.getScriptTimeZone(), "DD-MM-YYYY");
-
-  // Atualizar APENAS as colunas G (Status) e H (Data Pagamento)
-  const range = dividasSheet.getRange(`G${linhaPlanilha}:H${linhaPlanilha}`);
-  range.setValues([["Paga", dataPagamento]]);
+  // Chamada para a API do Google Apps Script
+  const response = await axios.get(
+    `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}`
+  );
 
   await sock.sendMessage(msg.key.remoteJid, { 
-    text: `✅ Dívida #${numero} marcada como paga em ${dataPagamento}.` 
+    text: response.data // Ex: "✅ Dívida #4 marcada como paga em 2024-05-05"
   });
   break;
 }

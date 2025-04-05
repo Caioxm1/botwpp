@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzla-nMFWvtdTA-M3Yrv240u8BfubMHStAxS3zh-sO5_SXchj9VQtApQxjrtGJsU2fyxg/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz9H8pIgHUAp3H60ovC4aqR4qdh_mGFfAaxj0LDUK8XABXa1qPWI_pMIz5u1oS7T2h9ng/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -877,17 +877,22 @@ case 'dívida listar': {
     // Formate a mensagem
     let mensagem = "📋 *Lista de Dívidas* 📋\n\n";
     dividas.forEach(d => {
-      const status = d.status === 'Paga' ? '✅ Paga' : 
-        (d.diasRestantes < 0 ? `🔴 Atrasada (${Math.abs(d.diasRestantes)} dias)` : 
-        `🟡 Pendente (${d.diasRestantes} dias)`);
-      
-      mensagem +=
+  let statusMsg;
+  if (d.status === 'Paga') {
+    statusMsg = '✅ Paga';
+  } else {
+    statusMsg = d.diasRestantes < 0 ? 
+      `🔴 Atrasada (${Math.abs(d.diasRestantes)} dias)` : 
+      `🟡 Pendente (em ${d.diasRestantes} dias)`;
+  }
+  
+  mensagem +=
 `⚫ #${d.id} - ${d.credor}
-   💵 Valor: R$ ${d.valor}
+   💵 Valor: R$ ${d.valor.toFixed(2).replace(".", ",")}
    📅 Vencimento: ${d.vencimento}
    🏷️ Categoria: ${d.categoria}
-   ⚠️ Status: ${status}\n\n`;
-    });
+   ⚠️ Status: ${statusMsg}\n\n`;
+});
 
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
     

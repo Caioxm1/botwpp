@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz9H8pIgHUAp3H60ovC4aqR4qdh_mGFfAaxj0LDUK8XABXa1qPWI_pMIz5u1oS7T2h9ng/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby0tZfwx_yaEY0g2748o876WZBEzMpliLucRYDmUBIIANLj0FAEK9H-jV0t4kx263za/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -1131,14 +1131,22 @@ case 'análise': {
           }
           break;
 
-        case 'dívida adicionar':
-          console.log("Processando comando 'dívida adicionar'...");
-          const valorDivida = parametros.valor;
-          const credor = parametros.credor;
-          const dataVencimento = parametros.dataVencimento;
-          await axios.get(`${WEB_APP_URL}?action=adicionarDivida&valor=${valorDivida}&credor=${credor}&dataVencimento=${dataVencimento}`);
-          await sock.sendMessage(msg.key.remoteJid, { text: `✅ Dívida de R$ ${valorDivida} adicionada com ${credor}, vencendo em ${dataVencimento}.` });
-          break;
+case 'dívida adicionar': {
+  console.log("Processando comando 'dívida adicionar'...");
+  const valorDivida = parametros.valor;
+  const credor = parametros.credor;
+  const dataVencimento = parametros.dataVencimento;
+  const categoria = parametros.categoria || "Geral"; // Captura a categoria
+
+  await axios.get(`${WEB_APP_URL}?action=adicionarDivida&valor=${valorDivida}&credor=${credor}&dataVencimento=${dataVencimento}&categoria=${encodeURIComponent(categoria)}`);
+
+  await sock.sendMessage(msg.key.remoteJid, { 
+    text: `✅ Dívida de R$ ${valorDivida} adicionada para ${credor}\n` +
+          `📅 Vencimento: ${dataVencimento}\n` +
+          `🏷️ Categoria: ${categoria}` 
+  });
+  break;
+}
 
         case 'lembrete adicionar':
           console.log("Processando comando 'lembrete adicionar'...");

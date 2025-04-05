@@ -838,7 +838,7 @@ if (texto.toLowerCase() === "!id") {
       switch (comando) {
 
 case 'dívida pagar': {
-  const numero = parametros.numero;
+  const numero = parametros.número;
   
   // Chamada para a API do Google Apps Script
   const response = await axios.get(

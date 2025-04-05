@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwvTrF0AEm82s6wMC08mIsYYu04F4tPRCV9K5t1WpcvrIGK_A2QTIfw8YUaVhi-jO_XWg/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx-AHdJTxoJhueh3gGBNhb4L-uvDN9MSXecD2DrRPjEzIb0TyLJyZdBtn43IJRXb35zng/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -854,10 +854,11 @@ if (texto.toLowerCase() === "!id") {
 
 case 'dívida pagar': {
   const numero = parametros.número;
-  const semSaida = parametros.semSaida || false; // ✅ Captura a flag corretamente
+  const semSaida = parametros.semSaida || false;
+  const remetente = msg.pushName; // Nome do remetente (ex: "Caio Eduardo")
 
   const response = await axios.get(
-    `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}&semSaida=${semSaida}`
+    `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}&semSaida=${semSaida}&remetente=${encodeURIComponent(remetente)}`
   );
 
   await sock.sendMessage(msg.key.remoteJid, { 

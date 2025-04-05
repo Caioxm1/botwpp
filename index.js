@@ -761,7 +761,8 @@ if (texto.toLowerCase() === "!id") {
         text: "⏳ Aguarde 5 segundos antes de enviar outro comando" 
       });
       return;
-    }
+    };
+      
     ultimosComandos.set(remetente, agora);
       
   console.log("Texto da mensagem:", texto);

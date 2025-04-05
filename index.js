@@ -878,13 +878,12 @@ case 'dívida detalhes': {
           
 case 'dívida listar': {
   try {
-    // Extrai parâmetros corretamente usando destructuring com valores padrão
     const { filtro = '', categoria = '' } = parametros || {};
 
-    const response = await axios.get(`${WEB_APP_URL}?action=listarDividasFiltro&filtro=${filtro}&categoria=${categoria}`);
-  const dividas = response.data.dividas;
+    const response = await axios.get(
+      `${WEB_APP_URL}?action=listarDividasFiltro&filtro=${encodeURIComponent(filtro)}&categoria=${encodeURIComponent(categoria)}`
+    );
 
-    // Verifique a estrutura da resposta
     if (!response.data.success || !Array.isArray(response.data.dividas)) {
       throw new Error('Resposta inválida da API');
     }
@@ -898,36 +897,32 @@ case 'dívida listar': {
       break;
     }
 
-    // Formate a mensagem
+    // Formate a mensagem (mantendo o formato original)
     let mensagem = "📋 *Lista de Dívidas* 📋\n\n";
     dividas.forEach(d => {
-  let statusMsg;
-  if (d.status === 'Paga') {
-    statusMsg = '✅ Paga';
-  } else {
-    statusMsg = d.diasRestantes < 0 ? 
-      `🔴 Atrasada (${Math.abs(d.diasRestantes)} dias)` : 
-      `🟡 Pendente (em ${d.diasRestantes} dias)`;
-  }
-  
-  mensagem +=
-`🆔 *${d.id - 1}* - ${d.credor}\n`;
-   💵 Valor: R$ ${d.valor.toFixed(2)}\n`;
-   📅 Vencimento: ${d.vencimento}\n`;
-   🏷️ Categoria: ${d.categoria}\n`;
-   ⚠️ Status: ${d.status}\n\n`;
-});
+      let statusMsg;
+      if (d.status === 'Paga') {
+        statusMsg = '✅ Paga';
+      } else {
+        statusMsg = d.diasRestantes < 0 ? 
+          `🔴 Atrasada (${Math.abs(d.diasRestantes)} dias)` : 
+          `🟡 Pendente (em ${d.diasRestantes} dias)`;
+      }
+      
+      mensagem += // Apenas adicione o ID na linha existente
+`⚫ #${d.id} - ${d.credor}
+   💵 Valor: R$ ${d.valor.toFixed(2).replace(".", ",")}
+   📅 Vencimento: ${d.vencimento}
+   🏷️ Categoria: ${d.categoria}
+   ⚠️ Status: ${statusMsg}\n\n`;
+    });
 
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
     
   } catch (error) {
-    console.error("Erro detalhado:", {
-      error: error.message,
-      response: error.response?.data
-    });
-    
+    console.error("Erro detalhado:", error);
     await sock.sendMessage(msg.key.remoteJid, { 
-      text: "❌ Erro ao listar dívidas. Verifique o formato dos dados." 
+      text: "❌ Erro ao listar dívidas. Tente novamente." 
     });
   }
   break;

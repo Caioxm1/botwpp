@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxETc1MWtMP3qu-76Ns1fSTbFefdaaqkECJNJtRB1JIK4KeojHsNmIO6gbRYIAItr9gMw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzFZ7YjM0C_OmSJjMI-Ojdpcg7uWqXQQEYbNJsejv-d__ymsfVGOxAd4ug3MoeoD8hk7A/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -1309,50 +1309,54 @@ case 'dívida adicionar': {
           }
 
 // Adicione este case:
+// Atualizar o case 'historico'
 case 'historico': {
   console.log("Processando comando 'historico'...");
-  
-  // Extrair parâmetros com valores padrão
-  const { 
-    tipo = "todos", // Tipo padrão: todos
-    categoria = "", // Categoria padrão: todas
-    dataInicio: dataInicioParam = "", // Data inicial padrão: vazia
-    dataFim: dataFimParam = "" // Data final padrão: vazia
-  } = parametros || {};
-
-  // Processar datas (adicionar ano atual se necessário)
-  const anoAtual = new Date().getFullYear();
-  let dataInicio = dataInicioParam;
-  let dataFim = dataFimParam;
-  if (dataInicio && dataInicio.length <= 5) dataInicio += `/${anoAtual}`;
-  if (dataFim && dataFim.length <= 5) dataFim += `/${anoAtual}`;
-
   try {
-    // Chamar API
+    const { 
+      tipo = "todos",
+      categoria = "",
+      dataInicio = "",
+      dataFim = ""
+    } = parametros || {};
+
     const response = await axios.get(
-      `${WEB_APP_URL}?action=historico&tipo=${tipo}&categoria=${categoria}&dataInicio=${dataInicio}&dataFim=${dataFim}`
+      `${WEB_APP_URL}?action=historico&tipo=${tipo}&categoria=${encodeURIComponent(categoria)}&dataInicio=${dataInicio}&dataFim=${dataFim}`
     );
+
+    console.log("Resposta da API:", response.data);
+    
+    if (!response.data.success || !Array.isArray(response.data.historico)) {
+      throw new Error('Resposta inválida da API');
+    }
+
     const historico = response.data.historico;
 
-    if (!historico || historico.length === 0) {
-      await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhuma transação encontrada." });
+    if (historico.length === 0) {
+      await sock.sendMessage(msg.key.remoteJid, { 
+        text: "📭 Nenhuma transação encontrada com esses filtros." 
+      });
       return;
     }
 
-    // Formatar mensagem com IDs fixos
-    let mensagem = "📜 *Histórico de Transações*:\n";
-    historico.forEach(transacao => {
-      mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data} - ${transacao.tipo}\n`;
+    let mensagem = "📜 *Histórico de Transações* 📜\n\n";
+    historico.forEach((transacao, index) => {
+      mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data}\n`;
+      mensagem += `⚫ Tipo: ${transacao.tipo}\n`;
       mensagem += `💵 Valor: R$ ${transacao.valor}\n`;
       mensagem += `🏷️ Categoria: ${transacao.categoria || "Sem categoria"}\n`;
       mensagem += `📝 Descrição: ${transacao.descricao || "Sem detalhes"}\n\n`;
     });
 
-    mensagem += "\n❌ Para excluir: `excluir [ID]` (ex: `excluir 5,7`)";
+    mensagem += "\n🔍 Use `excluir [ID]` para remover registros (ex: `excluir 5,7`)";
+    
     await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+    
   } catch (error) {
-    console.error("Erro ao processar histórico:", error);
-    await sock.sendMessage(msg.key.remoteJid, { text: "❌ Erro ao buscar histórico. Tente novamente." });
+    console.error("Erro no histórico:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao buscar histórico. Verifique os filtros e tente novamente." 
+    });
   }
   break;
 }

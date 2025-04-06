@@ -925,7 +925,7 @@ if (texto.toLowerCase() === "!id") {
       // Processa o comando financeiro
       switch (comando) {
 
-case 'gerar pdf': {
+case 'pdf': {
   try {
     const response = await axios.get(`${WEB_APP_URL}?action=gerarPDF`);
     const pdfBuffer = Buffer.from(response.data, 'base64');

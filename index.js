@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzFZ7YjM0C_OmSJjMI-Ojdpcg7uWqXQQEYbNJsejv-d__ymsfVGOxAd4ug3MoeoD8hk7A/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyvoVYRwwYR_7TkzZc4rNi8fTYLMdaYVKcw5_ErHw94YYFn7JGvLmu-PSIelbJhkQ3CNw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -902,6 +902,29 @@ if (texto.toLowerCase() === "!id") {
       // Processa o comando financeiro
       switch (comando) {
 
+case 'gerar pdf': {
+  try {
+    const response = await axios.get(`${WEB_APP_URL}?action=gerarPDF`);
+    const pdfBuffer = Buffer.from(response.data, 'base64');
+    
+    await sock.sendMessage(msg.key.remoteJid, { 
+      document: pdfBuffer,
+      fileName: 'Relatorio_Financeiro.pdf',
+      mimetype: 'application/pdf'
+    });
+    
+  } catch (error) {
+    console.error("Erro ao gerar PDF:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao gerar relatório. Tente novamente." 
+    });
+  }
+  break;
+}
+
+
+
+          
 case 'dívida pagar': {
   const numero = parametros.número;
   const semSaida = parametros.semSaida || false;

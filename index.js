@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxfp-M5z_I34D87tWlbcWEgxgctFfj8fOvNbRcZxaSFbuOvx-O_6hfh-vmZRTrUt0al4w/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyKHojyv5D8Aa_vhjOdizhrN3WOKC8US7ejgItNPZ-JYohS5d1W3mtomhz0x89dGvHvfw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -194,8 +194,25 @@ async function interpretarMensagemComOpenRouter(texto) {
             - Mensagem: "pagaram pra mim a dívida 3"
             JSON: { "comando": "dívida pagar", "parametros": { "número": 3, "semSaida": true } }
 
+              **Exemplo para "saída [valor] [categoria]":**
+              Se a mensagem for 'saída de [valor]' sem categoria, use 'Outros' como categoria padrão. Exemplo:
+            - Mensagem: "saída de 100"
+            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Outros" } }"
+
+            - Mensagem: "saida de 100"
+            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Outros" } }"            
+
+            - Mensagem: "Paguei 800 reais para a mulher da casa"
+            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Moradia" } }"
+
+            - Mensagem: "Tirei 800 reais para a mulher da casa"
+            - JSON: { "comando": "saída", "parametros": { "valor": 800, "categoria": "Moradia" } }"
+
+            - Mensagem: "Emprestei 100 reais para minha mãe"
+            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Outros" } }"
 
 
+            
 
               **Exemplo para "dívida adicionar":**
               - Mensagem: "adicionar dívida de 500 mercado 25/04/2025 alimentos"
@@ -538,6 +555,7 @@ if (texto.toLowerCase().includes("análise") || texto.toLowerCase().includes("an
     passeio: 'Lazer',
 
     // Moradia
+    casa: 'Moradia',
     aluguel: 'Moradia',
     condomínio: 'Moradia',
     luz: 'Moradia',
@@ -680,7 +698,7 @@ function pareceSerComandoFinanceiro(texto) {
     "quais são os orçamentos", "me de os orçamentos", "me mostre os orçamentos", "mostre os orçamentos", 
     "excluir", "comprei", "gastei", "qual é minhas dividas", "quais são minhas dividas", "quais as dividas", 
     "paguei", "transferir", "saldo", "meta", "valor", "reais", "R$",
-    "consultar pedidos", "ver pedidos", "listar pedidos",
+    "consultar pedidos", "ver pedidos", "listar pedidos", "saida de", "Paguei", "Tirei",
     "lista de pedidos", "pedidos do cliente", "ver pedidos",
     "listar clientes", "clientes registrados", "ver clientes",
     "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
@@ -1108,14 +1126,14 @@ case 'análise': {
             break;
 
           case 'saída':
-            console.log("Processando comando 'saída'...");
-            const valorSaida = parametros.valor;
-            const categoriaSaida = parametros.categoria;
-            const responseSaida = await axios.get(
-              `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetenteNome}` // ✅ Corrigido
-            );
-            await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
-            break;
+          console.log("Processando comando 'saída'...");
+          const valorSaida = parametros.valor;
+          const categoriaSaida = parametros.categoria || "Outros"; // Categoria padrão
+          const responseSaida = await axios.get(
+            `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetente}`
+          );
+          await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
+          break;
 
         case 'média':
           console.log("Processando comando 'média'...");

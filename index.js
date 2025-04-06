@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxe2J4lFtpP0qtvAoCytOrnDwy_X62DccWbJRQdDEAcEYdE2ha6kHrGFGb28CfYiYIryw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxUEiX7QzWVxeP1_95_8qStEYYOsZxdInSdWQfaVU623Gx5IMBgayS-qZCOPGKt2CW8/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -1150,8 +1150,8 @@ case 'análise': {
     categoriaSaida = responseCategoria.data.categoria || categoriaSaida;
 
     const responseSaida = await axios.get(
-      `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${encodeURIComponent(categoriaSaida)}&remetente=${encodeURIComponent(remetente)}`
-    );
+  `${WEB_APP_URL}?action=saída&valor=${valor}&categoria=${categoria}&remetente=${remetente}&texto=${encodeURIComponent(textoCompleto)}`
+);
     
     await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
   } catch (error) {
@@ -1308,6 +1308,7 @@ case 'historico': {
     mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data} - ${transacao.tipo}\n`;
     mensagem += `💵 Valor: R$ ${transacao.valor}\n`;
     mensagem += `🏷️ Categoria: ${transacao.categoria || "Sem categoria"}\n\n`;
+    mensagem += `📝 Descrição: ${transacao.descricao || "Sem detalhes"}\n\n`;
   });
 
   mensagem += "\n❌ Para excluir: `excluir [ID]` (ex: `excluir 5,7`)";

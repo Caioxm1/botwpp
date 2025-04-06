@@ -1139,6 +1139,7 @@ case 'análise': {
   const valorSaida = parametros.valor;
   let categoriaSaida = parametros.categoria || "Outros";
   const remetente = msg.pushName || "Sistema";
+  const textoOriginal = msg.message.conversation.trim();
 
   try {
     // Verifica e cria categoria se necessário
@@ -1150,7 +1151,7 @@ case 'análise': {
     categoriaSaida = responseCategoria.data.categoria || categoriaSaida;
 
     const responseSaida = await axios.get(
-  `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetente}&texto=${encodeURIComponent(textoCompleto)}`
+  `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetente}&texto=${encodeURIComponent(textoOriginal)}`
 );
     
     await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });

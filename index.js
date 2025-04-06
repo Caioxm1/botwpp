@@ -869,6 +869,7 @@ if (texto.toLowerCase() === "!id") {
       if (pareceSerComandoFinanceiro(texto)) {
         console.log("Tentando interpretar a mensagem como um comando financeiro...");
         const interpretacao = await interpretarMensagemComOpenRouter(texto);
+        console.log("Interpretação da mensagem:", interpretacao);
   
         // Se o OpenRouter retornou um comando válido
         if (interpretacao?.comando) {
@@ -1278,42 +1279,49 @@ case 'dívida adicionar': {
 // Adicione este case:
 case 'historico': {
   console.log("Processando comando 'historico'...");
-
-  // Extrair parâmetros
+  
+  // Extrair parâmetros com valores padrão
   const { 
-    tipo = "todos",
-    categoria = "",
-    dataInicio: dataInicioParam = "",
-    dataFim: dataFimParam = ""
+    tipo = "todos", // Tipo padrão: todos
+    categoria = "", // Categoria padrão: todas
+    dataInicio: dataInicioParam = "", // Data inicial padrão: vazia
+    dataFim: dataFimParam = "" // Data final padrão: vazia
   } = parametros || {};
 
-  // Processar datas
+  // Processar datas (adicionar ano atual se necessário)
   const anoAtual = new Date().getFullYear();
   let dataInicio = dataInicioParam;
   let dataFim = dataFimParam;
   if (dataInicio && dataInicio.length <= 5) dataInicio += `/${anoAtual}`;
   if (dataFim && dataFim.length <= 5) dataFim += `/${anoAtual}`;
 
-  // Chamar API
-  const response = await axios.get(`${WEB_APP_URL}?action=historico&tipo=${tipo}&categoria=${categoria}&dataInicio=${dataInicio}&dataFim=${dataFim}`);
-  const historico = response.data.historico;
+  try {
+    // Chamar API
+    const response = await axios.get(
+      `${WEB_APP_URL}?action=historico&tipo=${tipo}&categoria=${categoria}&dataInicio=${dataInicio}&dataFim=${dataFim}`
+    );
+    const historico = response.data.historico;
 
-  if (historico.length === 0) {
-    await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhuma transação encontrada." });
-    return;
+    if (!historico || historico.length === 0) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhuma transação encontrada." });
+      return;
+    }
+
+    // Formatar mensagem com IDs fixos
+    let mensagem = "📜 *Histórico de Transações*:\n";
+    historico.forEach(transacao => {
+      mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data} - ${transacao.tipo}\n`;
+      mensagem += `💵 Valor: R$ ${transacao.valor}\n`;
+      mensagem += `🏷️ Categoria: ${transacao.categoria || "Sem categoria"}\n`;
+      mensagem += `📝 Descrição: ${transacao.descricao || "Sem detalhes"}\n\n`;
+    });
+
+    mensagem += "\n❌ Para excluir: `excluir [ID]` (ex: `excluir 5,7`)";
+    await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+  } catch (error) {
+    console.error("Erro ao processar histórico:", error);
+    await sock.sendMessage(msg.key.remoteJid, { text: "❌ Erro ao buscar histórico. Tente novamente." });
   }
-
-  // Formatar mensagem com IDs fixos
-  let mensagem = "📜 *Histórico de Transações*:\n\n";
-  historico.forEach(transacao => {
-    mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data} - ${transacao.tipo}\n`;
-    mensagem += `💵 Valor: R$ ${transacao.valor}\n`;
-    mensagem += `🏷️ Categoria: ${transacao.categoria || "Sem categoria"}\n\n`;
-    mensagem += `📝 Descrição: ${transacao.descricao || "Sem detalhes"}\n\n`;
-  });
-
-  mensagem += "\n❌ Para excluir: `excluir [ID]` (ex: `excluir 5,7`)";
-  await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
   break;
 }
               

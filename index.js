@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyKHojyv5D8Aa_vhjOdizhrN3WOKC8US7ejgItNPZ-JYohS5d1W3mtomhz0x89dGvHvfw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxe2J4lFtpP0qtvAoCytOrnDwy_X62DccWbJRQdDEAcEYdE2ha6kHrGFGb28CfYiYIryw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -210,6 +210,15 @@ async function interpretarMensagemComOpenRouter(texto) {
 
             - Mensagem: "Emprestei 100 reais para minha mãe"
             - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Outros" } }"
+
+              Se a mensagem descrever uma transação sem categoria explícita, analise o contexto para sugerir a categoria mais adequada entre as existentes ou crie uma nova quando necessário. Exemplos:
+              - Mensagem: "Paguei 100 pro meu amigo"
+                JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Empréstimos" } }
+              - Mensagem: "Gastei 50 no parque de diversões"
+                JSON: { "comando": "saída", "parametros": { "valor": 50, "categoria": "Lazer" } }
+              - Mensagem: "Comprei material escolar por 200"
+                JSON: { "comando": "saída", "parametros": { "valor": 200, "categoria": "Educação" } }
+              Priorize categorias existentes quando o contexto for compatível, mesmo que não mencionadas explicitamente.
 
 
             
@@ -1125,15 +1134,34 @@ case 'análise': {
             await sock.sendMessage(msg.key.remoteJid, { text: `✅ Entrada de R$ ${valorEntrada} registrada por ${remetenteNome}.` });
             break;
 
-          case 'saída':
-          console.log("Processando comando 'saída'...");
-          const valorSaida = parametros.valor;
-          const categoriaSaida = parametros.categoria || "Outros"; // Categoria padrão
-          const responseSaida = await axios.get(
-            `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetente}`
-          );
-          await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
-          break;
+          case 'saída': {
+  console.log("Processando comando 'saída'...");
+  const valorSaida = parametros.valor;
+  let categoriaSaida = parametros.categoria || "Outros";
+  const remetente = msg.pushName || "Sistema";
+
+  try {
+    // Verifica e cria categoria se necessário
+    const responseCategoria = await axios.get(
+      `${WEB_APP_URL}?action=verificarCriarCategoria&categoria=${encodeURIComponent(categoriaSaida)}`
+    );
+    
+    // Se a categoria foi criada/modificada
+    categoriaSaida = responseCategoria.data.categoria || categoriaSaida;
+
+    const responseSaida = await axios.get(
+      `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${encodeURIComponent(categoriaSaida)}&remetente=${encodeURIComponent(remetente)}`
+    );
+    
+    await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
+  } catch (error) {
+    console.error("Erro:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: `❌ Erro: ${error.response?.data || error.message}`
+    });
+  }
+  break;
+}
 
         case 'média':
           console.log("Processando comando 'média'...");

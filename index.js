@@ -7,7 +7,6 @@ const express = require('express');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
 const app = express();
-const remetente = msg.pushName || "Usuário";
 app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -734,7 +733,7 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
       if (!msg?.message || !msg.key?.remoteJid) return;
     
 
-  const remetente = msg.key.participant || msg.key.remoteJid;
+  const remetente = msg?.pushName || "Usuário";
   const texto = msg.message.conversation.trim().toLowerCase();
 
   // Log para depuração

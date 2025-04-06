@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyvoVYRwwYR_7TkzZc4rNi8fTYLMdaYVKcw5_ErHw94YYFn7JGvLmu-PSIelbJhkQ3CNw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxBFfcAo7pNw5UjpygUO0UsOiQfshK6NgosuI7jGS02swRX4vZyBc6BDIgTAUyshZZ-xA/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -103,6 +103,9 @@ const LISTA_DE_COMANDOS = `
 📜 *Histórico*
 - historico [tipo] [categoria] [dataInicio] [dataFim]: Mostra o histórico de transações.
 
+📄 *Relatórios*
+- pdf: Gera um relatório completo em PDF
+
 ❌ *Exclusão*
 - excluir [número(s)]: Exclui transações específicas.
 - excluir tudo: Exclui todas as transações.
@@ -158,6 +161,7 @@ async function interpretarMensagemComOpenRouter(texto) {
             - consultar pedidos [cliente] [data]: *Sinônimos* → "lista de pedidos", "ver pedidos", "pedidos do cliente".
             - listar clientes: *Sinônimos* → "meus clientes", "clientes registrados", "quais são meus clientes".
             - análise: Gera uma análise detalhada dos gastos.
+            - pdf: Gera um relatório completo em PDF.
 
             Exemplos de JSON:
             - Mensagem: "quero ver detalhes da dívida 3"

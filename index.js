@@ -1150,7 +1150,7 @@ case 'análise': {
     categoriaSaida = responseCategoria.data.categoria || categoriaSaida;
 
     const responseSaida = await axios.get(
-  `${WEB_APP_URL}?action=saída&valor=${valor}&categoria=${categoria}&remetente=${remetente}&texto=${encodeURIComponent(textoCompleto)}`
+  `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetente}&texto=${encodeURIComponent(textoCompleto)}`
 );
     
     await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });

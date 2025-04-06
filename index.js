@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxUEiX7QzWVxeP1_95_8qStEYYOsZxdInSdWQfaVU623Gx5IMBgayS-qZCOPGKt2CW8/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxETc1MWtMP3qu-76Ns1fSTbFefdaaqkECJNJtRB1JIK4KeojHsNmIO6gbRYIAItr9gMw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -219,6 +219,28 @@ async function interpretarMensagemComOpenRouter(texto) {
               - Mensagem: "Comprei material escolar por 200"
                 JSON: { "comando": "saída", "parametros": { "valor": 200, "categoria": "Educação" } }
               Priorize categorias existentes quando o contexto for compatível, mesmo que não mencionadas explicitamente.
+
+
+**Exemplo para "entrada [valor]":**
+- Mensagem: "Recebi 1500 de salário como desenvolvedor"
+  JSON: { 
+    "comando": "entrada", 
+    "parametros": { 
+      "valor": 1500, 
+      "categoria": "Salário", 
+      "descricao": "Pagamento como desenvolvedor" 
+    } 
+  }
+
+- Mensagem: "Entrada de 500 reais da venda do notebook"
+  JSON: { 
+    "comando": "entrada", 
+    "parametros": { 
+      "valor": 500, 
+      "categoria": "Venda de Ativos", 
+      "descricao": "Venda do notebook usado" 
+    } 
+  }
 
 
             
@@ -1127,13 +1149,23 @@ case 'análise': {
   await sock.sendMessage(msg.key.remoteJid, { text: `✅ R$ ${valorPoupanca} transferidos para a poupança.` });
   break;
 
-          case 'entrada':
-            console.log("Processando comando 'entrada'...");
-            const valorEntrada = parametros.valor;
-            // Alterado: remetente → remetenteNome
-            await axios.get(`${WEB_APP_URL}?action=entrada&valor=${valorEntrada}&remetente=${remetenteNome}`);
-            await sock.sendMessage(msg.key.remoteJid, { text: `✅ Entrada de R$ ${valorEntrada} registrada por ${remetenteNome}.` });
-            break;
+ case 'entrada': {
+  console.log("Processando comando 'entrada'...");
+  const valorEntrada = parametros.valor;
+  const categoriaEntrada = parametros.categoria || "Outras Entradas"; // Nova categoria padrão
+  const descricaoEntrada = parametros.descricao || "";
+
+  await axios.get(`${WEB_APP_URL}?action=entrada&valor=${valorEntrada}&remetente=${remetenteNome}&categoria=${encodeURIComponent(categoriaEntrada)}&descricao=${encodeURIComponent(descricaoEntrada)}`);
+
+  await sock.sendMessage(msg.key.remoteJid, { 
+    text: `✅ Entrada registrada!\n\n` +
+          `💵 Valor: R$ ${valorEntrada}\n` +
+          `🏷️ Categoria: ${categoriaEntrada}\n` +
+          `📝 Descrição: ${descricaoEntrada || "Sem detalhes"}\n` +
+          `👤 Registrado por: ${remetenteNome}`
+  });
+  break;
+}
 
           case 'saída': {
   console.log("Processando comando 'saída'...");

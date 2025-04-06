@@ -334,6 +334,19 @@ async function interpretarMensagemComOpenRouter(texto) {
             - Mensagem: "histórico de 15/03 a 20/03"
             - JSON: { "comando": "historico", "parametros": { "dataInicio": "15/03/2024", "dataFim": "20/03/2024" } }
 
+            **Exemplo para "pdf":**
+            - Mensagem: "pdf"
+              JSON: { "comando": "pdf", "parametros": {} }
+            
+            - Mensagem: "gerar relatório em pdf"
+              JSON: { "comando": "pdf", "parametros": {} }
+
+              - Mensagem: "me de um pdf"
+              JSON: { "comando": "pdf", "parametros": {} }
+
+              - Mensagem: "Pdf"
+              JSON: { "comando": "pdf", "parametros": {} }
+
 
             1º **Instruções Especiais:**
             - Se a mensagem se referir a compras de alimentos (como verduras, legumes, frutas, carnes, etc.), a categoria deve ser sempre "Alimentação".
@@ -515,6 +528,12 @@ function interpretarMensagemManual(texto) {
       return { comando: "consultar pedidos", parametros: { cliente, data } };
     }
 
+    
+if (texto.toLowerCase() === "pdf") {
+    return { comando: "pdf", parametros: {} };
+  }
+  
+  
     // Fallback para "listar clientes"
     if (texto.match(/meus clientes|clientes cadastrados|quais clientes/i)) {
       return { comando: "listar clientes" };
@@ -727,7 +746,7 @@ async function gerarGrafico(tipo, dados) {
 // Função para verificar se a mensagem parece ser um comando financeiro
 function pareceSerComandoFinanceiro(texto) {
   const palavrasChaveFinanceiras = [
-    "análise", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
+    "análise", "pdf", "Pdf", "PDF", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
     "orçamento", "dívida", "lembrete", "histórico", "historico", "lista de dividas",
     "minha lista de dividas", "divida", "divida listar", "minha lista de dividas", "minhas dividas", "lista de orçamento", "meus orçamentos", 
     "quais são os orçamentos", "me de os orçamentos", "me mostre os orçamentos", "mostre os orçamentos", 

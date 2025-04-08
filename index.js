@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzR9hgMCivmEKyuESm9zX0GpSzG1l9080svpCftfprokCy9X6cZh3WwN80Dh9YlR420wA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz2q6QM5p2_MUHL9pSINfch-UsWLE5VJd1iRwkacLgeFa5a_VRgjGDFK77wKlU-Dv09mg/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -927,20 +927,19 @@ if (texto.toLowerCase() === "!id") {
 
 case 'pdf': {
   try {
-    const response = await axios.get(`${WEB_APP_URL}?action=gerarPDF`, {
-      responseType: 'arraybuffer' // <-- Adicione isso
-    });
-    
-    await sock.sendMessage(msg.key.remoteJid, { 
-      document: Buffer.from(response.data, 'binary'), // <-- Decodificação correta
-      fileName: `Relatorio_${Date.now()}.pdf`,
+    const response = await axios.get(`${WEB_APP_URL}?action=gerarPDF`);
+    const pdfBuffer = Buffer.from(response.data, 'base64');
+
+    await sock.sendMessage(msg.key.remoteJid, {
+      document: pdfBuffer,
+      fileName: `Relatorio_Financeiro_${new Date().toLocaleDateString()}.pdf`,
       mimetype: 'application/pdf',
-      caption: '📊 Relatório Financeiro'
+      caption: '📊 Relatório Financeiro Completo'
     });
   } catch (error) {
-    console.error("Erro:", error);
-    await sock.sendMessage(msg.key.remoteJid, { 
-      text: "❌ Erro ao gerar PDF. Código: PDF-002" 
+    console.error("Erro PDF:", error);
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: "❌ Erro ao gerar PDF. Verifique o console para detalhes."
     });
   }
   break;

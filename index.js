@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwdN-MhUlosEpnY9NInE7aDJOqshWLYBpePORQigIwJxQFilnvliplZrsMjbtyv7WvQdQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxY1JgSMl3mhEbTM6xJXvQjxL0OaH98xINCUnN0WkXJUzMr1bw0flLxGTfNfk7ONSYumQ/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -800,11 +800,26 @@ async function gerarGrafico(tipo, dados) {
 // Função para verificar se a mensagem parece ser um comando financeiro
 function pareceSerComandoFinanceiro(texto) {
   if (texto.startsWith('/')) {
-    const comando = texto.split(' ')[0].replace('/', '');
     const parametros = texto.split(' ').slice(1);
     return true; // Comandos administrativos
   }
 
+// Nova função assíncrona para processar comandos
+async function processarComandoAdministrativo(texto, jid) {
+  if (texto.startsWith('/')) {
+    const [comandoBruto, ...params] = texto.split(' ');
+    const comando = comandoBruto.replace('/', '').toLowerCase();
+    
+    if (comando === 'adicionar' && params[0] === 'servico') {
+      const [nome, duracao, preco] = params.slice(1);
+      await axios.get(`${WEB_APP_URL}?action=adicionarServico&nome=${nome}&duracao=${duracao}&preco=${preco}`);
+      await sock.sendMessage(jid, { text: `✅ Serviço "${nome}" cadastrado!` });
+      return true; // Indica que o comando foi processado
+    }
+  }
+  return false; // Não era um comando administrativo
+}
+  
 
   const palavrasChaveFinanceiras = [
     "análise", "pdf", "Pdf", "PDF", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
@@ -867,6 +882,10 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
       const msg = messages[0];
       if (!msg?.message || !msg.key?.remoteJid) return;
 
+      if (await processarComandoAdministrativo(texto, msg.key.remoteJid)) {
+        return; // Comando já foi processado
+      }
+
       // Declare a variável remetenteId apenas uma vez
       const remetenteId = msg.key.participant || msg.key.remoteJid; 
       const texto = msg.message.conversation.trim().toLowerCase();
@@ -898,10 +917,11 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
       // Verificação 3 - Permissões
       const isGrupoValido = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
-      const isUsuarioValido = USUARIOS_AUTORIZADOS.includes(msg.key.participant);
-
-      if (!isGrupoValido && !isUsuarioValido) {
-        console.log("Mensagem bloqueada por permissões");
+      const remetenteValido = USUARIOS_AUTORIZADOS.includes(msg.key.participant?.split('@')[0]);
+      const grupoAutorizado = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
+      
+      if (!grupoAutorizado || !remetenteValido) {
+        console.log("Acesso negado para:", msg.key.participant);
         return;
       }
 

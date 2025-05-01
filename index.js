@@ -3,6 +3,7 @@ const crypto = require('crypto');
 globalThis.crypto = crypto.webcrypto;
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const axios = require('axios');
+const sessoesAgendamento = new Map();
 const express = require('express');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
@@ -11,7 +12,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxY1JgSMl3mhEbTM6xJXvQjxL0OaH98xINCUnN0WkXJUzMr1bw0flLxGTfNfk7ONSYumQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxb1MHA68dKQUys-0M52qiLworELKZu1iPpMU2qRr8LlD0pFPS1urwM12cPZREZrpEvZA/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -164,6 +165,84 @@ const LISTA_DE_COMANDOS = `
 🔧 *Ajuda*
 - ajuda: Mostra esta lista de comandos.
 `;
+
+
+
+// Função para iniciar o fluxo
+async function iniciarFluxoAgendamento(jid, telefone) {
+  sessoesAgendamento.set(telefone, {
+    etapa: 'AGUARDANDO_NOME',
+    dados: {}
+  });
+  
+  await sock.sendMessage(jid, { 
+    text: `Olá! Vamos agendar seu serviço? Qual seu nome completo?`
+  });
+}
+
+// Função para processar respostas
+async function processarEtapaAgendamento(jid, telefone, resposta) {
+  const sessao = sessoesAgendamento.get(telefone);
+  
+  switch(sessao.etapa) {
+    case 'AGUARDANDO_NOME':
+      sessao.dados.nome = resposta;
+      sessao.etapa = 'AGUARDANDO_SERVICO';
+      
+      const servicos = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+      const lista = servicos.data.map((s, i) => `${i+1}. ${s.nome} - R$ ${s.preco}`).join('\n');
+      
+      await sock.sendMessage(jid, {
+        text: `🛎️ *Serviços Disponíveis:*\n\n${lista}\n\nDigite os números dos serviços desejados (Ex: 1,3)`
+      });
+      break;
+
+    case 'AGUARDANDO_SERVICO':
+      const numeros = resposta.split(',').map(n => parseInt(n.trim()) - 1);
+      const servicosEscolhidos = await axios.get(`${WEB_APP_URL}?action=obterServicos&ids=${numeros.join(',')}`);
+      
+      sessao.dados.servicos = servicosEscolhidos.data;
+      sessao.etapa = 'AGUARDANDO_DATA';
+      
+      await sock.sendMessage(jid, {
+        text: `📅 Digite a data desejada (Formato DD/MM/AAAA):`
+      });
+      break;
+
+    case 'AGUARDANDO_DATA':
+      sessao.dados.data = resposta;
+      sessao.etapa = 'AGUARDANDO_HORARIO';
+      
+      const horarios = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${resposta}`);
+      await sock.sendMessage(jid, {
+        text: `⏰ Horários disponíveis:\n${horarios.data.join('\n')}`
+      });
+      break;
+
+    case 'AGUARDANDO_HORARIO':
+      sessao.dados.horario = resposta;
+      
+      // Registrar na planilha
+      await axios.get(`${WEB_APP_URL}?action=registrarAgendamento` + 
+        `&nome=${encodeURIComponent(sessao.dados.nome)}` +
+        `&servicos=${encodeURIComponent(JSON.stringify(sessao.dados.servicos))}` +
+        `&data=${sessao.dados.data}` +
+        `&horario=${sessao.dados.horario}`
+      );
+      
+      await sock.sendMessage(jid, {
+        text: `✅ Agendamento confirmado para ${sessao.dados.data} às ${sessao.dados.horario}!`
+      });
+      
+      sessoesAgendamento.delete(telefone);
+      break;
+  }
+}
+
+
+
+
+
 
 // Função para interpretar mensagens usando o OpenRouter
 async function interpretarMensagemComOpenRouter(texto) {
@@ -889,6 +968,20 @@ async function processarComandoAdministrativo(texto, jid) {
       const jid = msg.key.remoteJid;
       const texto = msg.message.conversation?.trim().toLowerCase() || ''; // Declare aqui
       const remetenteId = msg.key.participant || jid; // Declaração única
+
+      const telefone = remetenteId.replace(/@s\.whatsapp\.net/, '');
+
+      // Verifica se está em fluxo de agendamento
+      if (sessoesAgendamento.has(telefone)) {
+        await processarEtapaAgendamento(jid, telefone, texto);
+        return;
+      }
+      
+      // Inicia novo agendamento
+      if (texto.toLowerCase().includes("agendar")) {
+        await iniciarFluxoAgendamento(jid, telefone);
+        return;
+      }
   
       // Processar comandos administrativos primeiro
       if (await processarComandoAdministrativo(texto, jid)) {
@@ -922,11 +1015,17 @@ async function processarComandoAdministrativo(texto, jid) {
 
       // Verificação 3 - Permissões
       const isGrupoValido = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
-      const remetenteValido = USUARIOS_AUTORIZADOS.includes(remetenteId.split('@')[0]);
-      const grupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
+      const isAdmin = USUARIOS_AUTORIZADOS.includes(remetenteId);
+      const isGrupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
       
-      if (!grupoAutorizado || !remetenteValido) {
-        console.log("Acesso negado para:", remetenteId);
+      if (!isGrupoAutorizado) {
+        console.log("Grupo não autorizado:", jid);
+        return;
+      }
+
+      // Bloqueia comandos administrativos de não-admins
+      if (texto.startsWith('/') && !isAdmin) {
+        console.log("Acesso negado para comando administrativo:", remetenteId);
         return;
       }
 

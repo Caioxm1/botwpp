@@ -176,288 +176,12 @@ async function interpretarMensagemComOpenRouter(texto) {
         messages: [
           {
             role: 'user',
-            content: `Interprete a mensagem e retorne APENAS o JSON (sem explicações adicionais e sem textos enormes, sendo apenas o necessario) correspondente ao comando. 
-            Comandos disponíveis:
-            - resumo: Mostra um resumo financeiro.
-            - poupança [valor]: Adiciona um valor à poupança.
-            - entrada [valor]: Registra uma entrada de dinheiro.
-            - saída [valor] [categoria]: Registra uma saída de dinheiro em uma categoria específica.
-            - média: Mostra a média de entradas.
-            - grafico [tipo] [dados] [periodo]: Gera um gráfico com base nos dados fornecidos.
-            - categoria adicionar [nome]: Adiciona uma nova categoria.
-            - listar categorias: Lista todas as categorias.
-            - orçamento [número]: Mostra o resumo do orçamento com o número especificado.
-            - orçamento definir [categoria] [valor]: Define um orçamento para uma categoria.
-            - orçamento listar: Lista todos os orçamentos.
-            - orçamento excluir [número]: Exclui um orçamento específico.
-            - dívida adicionar [valor] [credor] [dataVencimento]: Adiciona uma dívida.
-            - dívida pagar [número]: Marca uma dívida como paga.
-            - dívida excluir [número]: Remove uma dívida específica.
-            - dívida detalhes [número]: Mostra informações completas.
-            - dívida listar atrasadas: Mostra dívidas vencidas.
-            - dívida listar pagas: Mostra dívidas quitadas.
-            - dívida listar [filtro]: Lista dívidas (opções: atrasadas, pagas)
-            - dívida listar [categoria]: Filtra por categoria
-            - dívida alerta [dias]: Configura alertas.
-            - lembrete adicionar [descrição] [data]: Adiciona um lembrete.
-            - lembrete listar: Lista todos os lembretes.
-            - historico [tipo] [categoria] [dataInicio] [dataFim]: Mostra o histórico de transações.
-            - excluir [número(s)]: Exclui transações específicas.
-            - excluir tudo: Exclui todas as transações.
-            - excluir dia [data]: Exclui transações de um dia específico.
-            - excluir periodo [dataInicio] [dataFim]: Exclui transações de um período específico.
-            - adicionar pedido [cliente] [produto] [quantidade] [precoUnitario]: Registra um pedido para um cliente.
-            - consultar pedidos [cliente] [data]: *Sinônimos* → "lista de pedidos", "ver pedidos", "pedidos do cliente".
-            - listar clientes: *Sinônimos* → "meus clientes", "clientes registrados", "quais são meus clientes".
-            - análise: Gera uma análise detalhada dos gastos.
-            - pdf: Gera um relatório completo em PDF.
-
-            Exemplos de JSON:
-            - Mensagem: "quero ver detalhes da dívida 3"
-              JSON: { "comando": "dívida detalhes", "parametros": { "número": 3 } }
-            
-            - Mensagem: "listar dívidas de fornecedores"
-              JSON: { "comando": "dívida listar", "parametros": { "categoria": "fornecedor" } }
-
-            - Mensagem: "listar dívidas"
-              JSON: { "comando": "dívida listar", "parametros": {} }
-              
-            - Mensagem: "listar dividas"
-              JSON: { "comando": "dívida listar", "parametros": {} }   
-
-           - Mensagem: "dívida listar atrasadas"
-              JSON: { "comando": "dívida listar", "parametros": { "filtro": "atrasadas" } }
-          
-            - Mensagem: "dívida listar pagas"
-              JSON: { "comando": "dívida listar", "parametros": { "filtro": "pagas" } }
-            
-            - Mensagem: "dívida listar fornecedores"
-              JSON: { "comando": "dívida listar", "parametros": { "categoria": "fornecedor" } }
-
-
-
-            **Exemplo com --sem-saida:**
-            - Mensagem: "divida pagar 4 --sem-saida"
-            JSON: { "comando": "dívida pagar", "parametros": { "número": 4, "semSaida": true } }
-          
-            - Mensagem: "pagar dívida 2 sem registrar saída"
-            JSON: { "comando": "dívida pagar", "parametros": { "número": 2, "semSaida": true } }
-            - Mensagem: "paguei a dívida 4 sem tirar do meu dinheiro"
-            JSON: { "comando": "dívida pagar", "parametros": { "número": 4, "semSaida": true } }
-            - Mensagem: "pagaram pra mim a dívida 3"
-            JSON: { "comando": "dívida pagar", "parametros": { "número": 3, "semSaida": true } }
-
-              **Exemplo para "saída [valor] [categoria]":**
-              Se a mensagem for 'saída de [valor]' sem categoria, use 'Outros' como categoria padrão. Exemplo:
-            - Mensagem: "saída de 100"
-            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Outros" } }"
-
-            - Mensagem: "saida de 100"
-            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Outros" } }"            
-
-            - Mensagem: "Paguei 800 reais para a mulher da casa"
-            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Moradia" } }"
-
-            - Mensagem: "Tirei 800 reais para a mulher da casa"
-            - JSON: { "comando": "saída", "parametros": { "valor": 800, "categoria": "Moradia" } }"
-
-            - Mensagem: "Emprestei 100 reais para minha mãe"
-            - JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Outros" } }"
-
-              Se a mensagem descrever uma transação sem categoria explícita, analise o contexto para sugerir a categoria mais adequada entre as existentes ou crie uma nova quando necessário. Exemplos:
-              - Mensagem: "Paguei 100 pro meu amigo"
-                JSON: { "comando": "saída", "parametros": { "valor": 100, "categoria": "Empréstimos" } }
-              - Mensagem: "Gastei 50 no parque de diversões"
-                JSON: { "comando": "saída", "parametros": { "valor": 50, "categoria": "Lazer" } }
-              - Mensagem: "Comprei material escolar por 200"
-                JSON: { "comando": "saída", "parametros": { "valor": 200, "categoria": "Educação" } }
-              Priorize categorias existentes quando o contexto for compatível, mesmo que não mencionadas explicitamente.
-
-
-**Exemplo para "entrada [valor]":**
-- Mensagem: "Recebi 1500 de salário como desenvolvedor"
-  JSON: { 
-    "comando": "entrada", 
-    "parametros": { 
-      "valor": 1500, 
-      "categoria": "Salário", 
-      "descricao": "Pagamento como desenvolvedor" 
-    } 
-  }
-
-- Mensagem: "Entrada de 500 reais da venda do notebook"
-  JSON: { 
-    "comando": "entrada", 
-    "parametros": { 
-      "valor": 500, 
-      "categoria": "Venda de Ativos", 
-      "descricao": "Venda do notebook usado" 
-    } 
-  }
-
-
-            
-
-              **Exemplo para "dívida adicionar":**
-              - Mensagem: "adicionar dívida de 500 mercado 25/04/2025 alimentos"
-              JSON: { 
-                "comando": "dívida adicionar", 
-                "parametros": {
-                  "valor": 500,
-                  "credor": "mercado",
-                  "dataVencimento": "25/12/2024",
-                  "categoria": "Alimentação"
-                }
-              }
-              - Mensagem: "adicionar uma divida de 500 reais do mercado no dia 25/04/2025 na categoria alimentos"
-              JSON: { 
-                "comando": "dívida adicionar", 
-                "parametros": {
-                  "valor": 500,
-                  "credor": "mercado",
-                  "dataVencimento": "25/12/2024",
-                  "categoria": "Alimentação"
-                }
-              }
-
-
-            **Exemplo para "análise":**
-            - Mensagem: "Quero uma análise dos meus gastos"
-            - JSON: { "comando": "análise" }
-            
-            - Mensagem: "analise financeira"
-            - JSON: { "comando": "análise" }
-            
-            - Mensagem: "Como estão meus gastos?"
-            - JSON: { "comando": "análise" }
-            
-            - Mensagem: 'Como estão meus gastos este mês?'
-            - JSON: { "comando": "análise" }
-            
-            - Mensagem: "Quero uma análise financeira"
-            - JSON: { "comando": "análise" }
-            
-            - Mensagem: "Mostre meus gastos"
-            - JSON: { "comando": "análise" }
-            
-            - Mensagem: "Faça uma análise financeira"
-            - JSON: { "comando": "análise" }
-
-            **Exemplo para "listar clientes":**
-            - Mensagem: 'Quais clientes têm pedidos?'
-            - JSON: {"comando": "listar clientes" }"
-          
-            - Mensagem: "Meus clientes"  
-            - JSON: {"comando": "listar clientes" }"
-
-            - Mensagem: "Quais são os meus cliente"  
-            - JSON: {"comando": "listar clientes" }"
-            
-            - Mensagem: "Mostre meus clientes"  
-            - JSON: {"comando": "listar clientes" }"
-
-            **Instruções Especiais para Pedidos:**
-            - Se a mensagem incluir algo como 'consultar pedidos', 'consultar pedido', 'ver pedidos' ou 'listar pedidos', extraia:
-            - cliente: Nome do cliente após 'para' ou 'do'.
-            **Instruções Especiais para Datas:**
-            - A data deve ser extraída **exatamente como escrita pelo usuário**, sem modificações.\n" +
-            - Exemplo:
-            - Mensagem: 'Lista de pedidos da Lavradio dia 21/03/2025'
-            - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "21/03/2025" }}"
-            - data: Data no formato DD/MM/AAAA ou DD/MM.
-            Exemplo:
-            - Mensagem: 'Quero ver os pedidos do cliente Lavradio de 21/03/2025'
-            - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "21/03/2025" } }
-            - Mensagem: "consultar pedido da lavradio 29/03/2025"  
-            - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "29/03/2025" } }
-            - Mensagem: "pedidos da lavradio dia 29/03/2025"  
-            - JSON: { "comando": "consultar pedidos", "parametros": { "cliente": "Lavradio", "data": "29/03/2025" } }
-
-            **Exemplos de datas:**
-            - Mensagem: "histórico do dia 29/03"
-            - JSON: { "comando": "historico", "parametros": { "dataInicio": "29/03/2024", "dataFim": "29/03/2024" } }
-            
-            - Mensagem: "histórico de 29/03 até 03/04"
-            - JSON: { "comando": "historico", "parametros": { "dataInicio": "29/03/2024", "dataFim": "03/04/2024" } }
-            
-            - Mensagem: "histórico de 15/03 a 20/03"
-            - JSON: { "comando": "historico", "parametros": { "dataInicio": "15/03/2024", "dataFim": "20/03/2024" } }
-
-            **Exemplo para "pdf":**
-            - Mensagem: "pdf"
-              JSON: { "comando": "pdf", "parametros": {} }
-            
-            - Mensagem: "gerar relatório em pdf"
-              JSON: { "comando": "pdf", "parametros": {} }
-
-              - Mensagem: "me de um pdf"
-              JSON: { "comando": "pdf", "parametros": {} }
-
-              - Mensagem: "Pdf"
-              JSON: { "comando": "pdf", "parametros": {} }
-
-
-            1º **Instruções Especiais:**
-            - Se a mensagem se referir a compras de alimentos (como verduras, legumes, frutas, carnes, etc.), a categoria deve ser sempre "Alimentação".
-            - Exemplos de mensagens que devem ser categorizadas como "Alimentação":
-              - "Comprei uma caixa de aipim por 60 reais"
-              - "Gastei 30 reais em verduras no mercado"
-              - "Paguei 50 reais em frutas e legumes"
-
-              2º **Instruções Especiais:**
-            - Se a mensagem se referir a compras de saúde (como maquiagem, desodorante, remédio, exame, etc.), a categoria deve ser sempre "Alimentação".
-            - Exemplos de mensagens que devem ser categorizadas como "Saúde":
-              - "Comprei uma dipirona por 3 reais"
-              - "Gastei 30 reais em maquiagens na farmácia"
-              - "Paguei 50 reais em shampoo e condicionador"
-
-              3º **Instruções Especiais:**
-              - Se a mensagem se referir a um pedido, extraia:
-              - cliente: Nome do cliente após "para cliente".
-              - produto: Nome do produto após "de".
-              - quantidade: Número antes da unidade (ex: "uma caixa" → quantidade=1).
-              - precoUnitario: Valor após "por" ou "reais".
-              Exemplo:
-              - Mensagem: "Adicionar um pedido para cliente Lavradio de uma caixa de tomate por 120 reais"
-              - JSON:
-              {
-                "comando": "adicionar pedido",
-                "parametros": {
-                  "cliente": "Lavradio",
-                  "produto": "caixa de tomate",
-                  "quantidade": 1,
-                  "precoUnitario": 120
-                }
-              }
-
-              4º **Instruções Especiais:**
-              - Se a mensagem for uma pergunta geral, conversa ou não relacionada a finanças, retorne um JSON vazio: {}.
-              - Exemplos de mensagens que devem retornar JSON vazio:
-              - "Qual é a previsão do tempo?"
-              - "Como você está?"
-              - "100 + 10% é quanto?"
-              - "Quero fazer uma viagem com 800 reais em São Paulo. Poderia me ajudar a montar uma viagem de 3 dias?"
-
-            Sua tarefa é interpretar a seguinte mensagem e retornar o comando correspondente em formato JSON:
-            {
-              "comando": "nome_do_comando",
-              "parametros": {
-                "parametro1": "valor1",
-                "parametro2": "valor2",
-                "parametro3": "valor3"
-              }
-            }
-
-            A mensagem pode conter 1, 2 ou 3 parâmetros. Se houver menos de 3 parâmetros, os valores ausentes devem ser preenchidos com valores padrão ou omitidos.
-
-            **Valores padrão:**
-            - Para 'grafico':
-              - tipo: 'bar'
-              - dados: 'ambos'
-              - periodo: 'mês'
-
-            **Retorne apenas o JSON, sem explicações adicionais.**
-
+            content: `Você é um assistente virtual que ajuda com finanças e também pode conversar sobre outros assuntos. Responda de forma amigável e útil.
+            Se a mensagem começar com '/', é um comando interno e deve retornar JSON vazio. Exemplos:
+            - Mensagem: '/adicionar servico Corte 30 50'
+            - JSON: {}
+            - Mensagem: 'Olá, quero agendar'
+            - JSON: { ...fluxo normal... }
             Mensagem: ${JSON.stringify(texto)}`
           }
         ],
@@ -792,25 +516,66 @@ async function gerarGrafico(tipo, dados) {
   return chartJSNodeCanvas.renderToBuffer(configuration);
 }
 
-// Função para verificar se a mensagem parece ser um comando financeiro
-function pareceSerComandoFinanceiro(texto) {
-  const palavrasChaveFinanceiras = [
-    "análise", "pdf", "Pdf", "PDF", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
-    "orçamento", "dívida", "lembrete", "histórico", "historico", "lista de dividas",
-    "minha lista de dividas", "divida", "divida listar", "minha lista de dividas", "minhas dividas", "lista de orçamento", "meus orçamentos", 
-    "quais são os orçamentos", "me de os orçamentos", "me mostre os orçamentos", "mostre os orçamentos", 
-    "excluir", "comprei", "gastei", "qual é minhas dividas", "quais são minhas dividas", "quais as dividas", 
-    "paguei", "transferir", "saldo", "meta", "valor", "reais", "R$",
-    "consultar pedidos", "ver pedidos", "listar pedidos", "saida de", "Paguei", "Tirei",
-    "lista de pedidos", "pedidos do cliente", "ver pedidos",
-    "listar clientes", "clientes registrados", "ver clientes",
-    "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
+// Substituir a função pareceSerComandoFinanceiro
+function isComandoEspecifico(texto) {
+  // Lista de comandos que NÃO devem acionar a OpenRouter
+  const comandosLocais = [
+    '/adicionar', '/agendar', '/cancelar', 
+    '/listar', '/pagar', '/excluir', '!id'
   ];
 
-  // Verifica se a mensagem contém alguma palavra-chave financeira
-  return palavrasChaveFinanceiras.some(palavra => 
-    texto.toLowerCase().includes(palavra.toLowerCase())
+  return comandosLocais.some(comando => 
+    texto.toLowerCase().startsWith(comando.toLowerCase())
   );
+}
+
+// Atualizar o Handler de Mensagens
+sock.ev.on('messages.upsert', async ({ messages }) => {
+  const msg = messages[0];
+  if (!msg?.message?.conversation) return;
+
+  const texto = msg.message.conversation.trim();
+  const jid = msg.key.remoteJid;
+
+  // Passo 1: Verificar se é comando local
+  if (isComandoEspecifico(texto)) {
+    // Processar comandos internos SEM OpenRouter
+    processarComandoLocal(texto, jid);
+    return;
+  }
+
+  // Passo 2: Verificar se está em fluxo de agendamento
+  if (estadosAgendamento.has(telefone)) {
+    continuarFluxoAgendamento(texto, jid);
+    return;
+  }
+
+  // Passo 3: Usar OpenRouter apenas para mensagens genéricas
+  const resposta = await gerarRespostaConversacao(texto);
+  await sock.sendMessage(jid, { text: resposta });
+});
+
+// Adicionar Função de Processamento de Comandos
+async function processarComandoLocal(texto, jid) {
+  const [comando, ...params] = texto.split(' ');
+  
+  switch(comando.toLowerCase()) {
+    case '/adicionar':
+      if (params[0] === 'servico') {
+        const [nome, duracao, preco] = params.slice(1);
+        await axios.get(`${WEB_APP_URL}?action=adicionarServico&nome=${nome}&duracao=${duracao}&preco=${preco}`);
+        await sock.sendMessage(jid, { 
+          text: `✅ Serviço "${nome}" cadastrado com sucesso!`
+        });
+      }
+      break;
+
+    case '/agendar':
+      // Lógica específica de agendamento
+      break;
+
+    // Adicione outros comandos...
+  }
 }
 
 // Função principal do bot
@@ -856,6 +621,25 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
   const remetente = msg?.pushName || "Usuário";
   const texto = msg.message.conversation.trim().toLowerCase();
+
+// Passo 1: Verificar se é comando local
+  if (isComandoEspecifico(texto)) {
+    // Processar comandos internos SEM OpenRouter
+    processarComandoLocal(texto, jid);
+    return;
+  }
+
+  // Passo 2: Verificar se está em fluxo de agendamento
+  if (estadosAgendamento.has(telefone)) {
+    continuarFluxoAgendamento(texto, jid);
+    return;
+  }
+
+  // Passo 3: Usar OpenRouter apenas para mensagens genéricas
+  const resposta = await gerarRespostaConversacao(texto);
+  await sock.sendMessage(jid, { text: resposta });
+
+
 
   // Log para depuração
   console.log(`=== Nova mensagem ===`);

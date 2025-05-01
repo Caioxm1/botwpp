@@ -579,10 +579,10 @@ async function processarComandoLocal(texto, jid) {
 }
 
 // Função principal do bot
-let sock = null;
-
 async function iniciarConexaoWhatsApp() {
-const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+  let sock = null;
+
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   
   sock = makeWASocket({
     auth: state,

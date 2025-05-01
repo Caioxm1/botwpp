@@ -799,10 +799,6 @@ async function gerarGrafico(tipo, dados) {
 
 // Função para verificar se a mensagem parece ser um comando financeiro
 function pareceSerComandoFinanceiro(texto) {
-  if (texto.startsWith('/')) {
-    const parametros = texto.split(' ').slice(1);
-    return true; // Comandos administrativos
-  }
 
 // Nova função assíncrona para processar comandos
 async function processarComandoAdministrativo(texto, jid) {

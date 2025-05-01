@@ -12,7 +12,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxPK8MlW5htHyTDdgvo_uKr22Vbte1EQd-Y5kHVLuvSvzP3qz-45kyACd7Op01DD4kdDA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzXqbQ_X71VhYtVpR3Ez6hAhKl5d4agCjAZG1lTXs1enSAigJ1MS0aOl5rnJNYGGAWgtw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -216,7 +216,6 @@ async function processarEtapaAgendamento(jid, telefone, resposta) {
         
         const responseHorarios = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${resposta}`);
         
-        // Verificação e tratamento da resposta
         if (!responseHorarios.data.success || !Array.isArray(responseHorarios.data.horarios)) {
           console.error("Resposta inválida da API:", responseHorarios.data);
           throw new Error("Erro ao buscar horários");
@@ -227,9 +226,31 @@ async function processarEtapaAgendamento(jid, telefone, resposta) {
           : "Nenhum horário disponível";
         
         await sock.sendMessage(jid, {
-          text: `⏰ Horários disponíveis:\n${listaHorarios}`
+          text: `⏰ *Horários Disponíveis:*\n\n${listaHorarios}\n\nDigite o horário desejado (Ex: 09:00)`
         });
         break;
+
+      
+// Adicione este case na função processarEtapaAgendamento
+case 'AGUARDANDO_HORARIO':
+  sessao.dados.horario = resposta;
+
+  // Registrar na planilha
+  await axios.get(`${WEB_APP_URL}?action=registrarAgendamento` + 
+    `&nome=${encodeURIComponent(sessao.dados.nome)}` +
+    `&servicos=${encodeURIComponent(JSON.stringify(sessao.dados.servicos))}` +
+    `&data=${sessao.dados.data}` +
+    `&horario=${sessao.dados.horario}`
+  );
+
+  await sock.sendMessage(jid, {
+    text: `✅ Agendamento confirmado para ${sessao.dados.data} às ${sessao.dados.horario}!`
+  });
+
+  sessoesAgendamento.delete(telefone);
+  break;
+
+
   }
 }
 

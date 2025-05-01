@@ -401,6 +401,12 @@ async function interpretarMensagemComOpenRouter(texto) {
             Exemplo:
             - Mensagem: '/adicionar servico Corte 30 60'
             - JSON: { "comando": "adicionar servico", "parametros": { "nome": "Corte", "duracao": 30, "preco": 60 } }
+            
+            Exemplo:
+            - Mensagem: '/adicionar servico Corte Degradê 30 60'
+            - JSON: { "comando": "adicionar servico", "parametros": { "nome": "Corte Degradê", "duracao": 30, "preco": 60 } }
+
+
 
             1º **Instruções Especiais:**
             - Se a mensagem se referir a compras de alimentos (como verduras, legumes, frutas, carnes, etc.), a categoria deve ser sempre "Alimentação".

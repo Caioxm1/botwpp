@@ -12,7 +12,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzXqbQ_X71VhYtVpR3Ez6hAhKl5d4agCjAZG1lTXs1enSAigJ1MS0aOl5rnJNYGGAWgtw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw8zgBwD5v-MRurLEP7y8i0RZekBo_imyLkIWOJ-nKuhz0YoDggeP2U8k8sQqRsaaQs/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -240,7 +240,8 @@ case 'AGUARDANDO_HORARIO':
     `&nome=${encodeURIComponent(sessao.dados.nome)}` +
     `&servicos=${encodeURIComponent(JSON.stringify(sessao.dados.servicos))}` +
     `&data=${sessao.dados.data}` +
-    `&horario=${sessao.dados.horario}`
+    `&horario=${sessao.dados.horario}` +
+    `&telefone=${telefone}` // Adicione esta linha
   );
 
   await sock.sendMessage(jid, {

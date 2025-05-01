@@ -12,7 +12,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw8zgBwD5v-MRurLEP7y8i0RZekBo_imyLkIWOJ-nKuhz0YoDggeP2U8k8sQqRsaaQs/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw5RZbtlDzUjUZdnnU_--mdsFW1Vl64qe2tJDyQpfT1k3kcddJOhLc8Hj2hUGWUmr_z_g/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -234,6 +234,8 @@ async function processarEtapaAgendamento(jid, telefone, resposta) {
 // Adicione este case na função processarEtapaAgendamento
 case 'AGUARDANDO_HORARIO':
   sessao.dados.horario = resposta;
+
+  const telefone = sessao.telefone; // Certifique-se que está sendo armazenado corretamente
 
   // Registrar na planilha
   await axios.get(`${WEB_APP_URL}?action=registrarAgendamento` + 

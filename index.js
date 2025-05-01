@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyRIy1Z6BRckDWYYxp3mRia1nAlJeZ7wUWkMTZPZc5gyuBniLLt2v8cSzeXbClezJf57g/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz7-o8p9HDj1KFGmbHkPW_jvOj7Ekj1qyYo607BSY6cTo5baQNhj7UyfvOLPeaVySng/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -112,6 +112,10 @@ const LISTA_DE_COMANDOS = `
 - excluir dia [data]: Exclui transações de um dia específico.
 - excluir periodo [dataInicio] [dataFim]: Exclui transações de um período específico.
 
+📅 *Agendamentos*
+- agendar [cliente] [serviço] [data] [hora] [telefone]: Agenda um serviço para um cliente.
+- verificar horarios [data]: Mostra os horários ocupados em uma data.
+
 🔧 *Ajuda*
 - ajuda: Mostra esta lista de comandos.
 `;
@@ -162,6 +166,8 @@ async function interpretarMensagemComOpenRouter(texto) {
             - listar clientes: *Sinônimos* → "meus clientes", "clientes registrados", "quais são meus clientes".
             - análise: Gera uma análise detalhada dos gastos.
             - pdf: Gera um relatório completo em PDF.
+            - agendar [cliente] [serviço] [data] [hora] [telefone]: Agenda um serviço.
+            - verificar horarios [data]: Lista horários ocupados.
 
             Exemplos de JSON:
             - Mensagem: "quero ver detalhes da dívida 3"
@@ -348,6 +354,16 @@ async function interpretarMensagemComOpenRouter(texto) {
               JSON: { "comando": "pdf", "parametros": {} }
 
 
+            **Exemplo para "agendar":**
+            - Mensagem: "/agendar João Corte 25/12/2024 15:00 5521999999999"
+            - JSON: { "comando": "agendar", "parametros": { "cliente": "João", "servico": "Corte", "data": "25/12/2024", "hora": "15:00", "telefone": "5521999999999" } }
+
+            **Exemplo para "verificar horarios":**
+            - Mensagem: "/verificar horarios 25/12/2024"
+            - JSON: { "comando": "verificar horarios", "parametros": { "data": "25/12/2024" } }
+
+
+
             1º **Instruções Especiais:**
             - Se a mensagem se referir a compras de alimentos (como verduras, legumes, frutas, carnes, etc.), a categoria deve ser sempre "Alimentação".
             - Exemplos de mensagens que devem ser categorizadas como "Alimentação":
@@ -444,6 +460,7 @@ async function interpretarMensagemComOpenRouter(texto) {
       try {
         const interpretacao = JSON.parse(jsonMatch[0]);
         console.log("Interpretação da mensagem:", interpretacao);
+        console.log("Interpretação do OpenRouter:", interpretacao);
         return interpretacao;
       } catch (erro) {
         console.error("Erro ao analisar JSON:", erro);
@@ -538,6 +555,23 @@ if (texto.toLowerCase() === "pdf") {
     if (texto.match(/meus clientes|clientes cadastrados|quais clientes/i)) {
       return { comando: "listar clientes" };
     }
+
+
+    if (texto.toLowerCase().startsWith("/agendar")) {
+      const partes = texto.split(' ');
+      return { 
+        comando: "agendar", 
+        parametros: {
+          cliente: partes[1],
+          servico: partes[2],
+          data: partes[3],
+          hora: partes[4],
+          telefone: partes[5]
+        }
+      };
+    }
+
+
 
     // Fallback para "historico"
     if (texto.match(/histórico|historico/i)) {
@@ -754,7 +788,7 @@ function pareceSerComandoFinanceiro(texto) {
     "paguei", "transferir", "saldo", "meta", "valor", "reais", "R$",
     "consultar pedidos", "ver pedidos", "listar pedidos", "saida de", "Paguei", "Tirei",
     "lista de pedidos", "pedidos do cliente", "ver pedidos",
-    "listar clientes", "clientes registrados", "ver clientes",
+    "listar clientes", "clientes registrados", "ver clientes","agendar", "horarios", "agendamento", "verificar horarios",
     "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
   ];
 
@@ -924,6 +958,12 @@ if (texto.toLowerCase() === "!id") {
 
       // Processa o comando financeiro
       switch (comando) {
+
+
+
+
+
+
 
 case 'pdf': {
   try {
@@ -1470,7 +1510,12 @@ case 'historico': {
           break;
 
         case 'agendar': {
-          const { cliente, servico, data, hora, telefone } = parametros;
+            // Parâmetros devem corresponder ao JSON
+          const cliente = parametros.cliente;
+          const servico = parametros.servico;
+          const data = parametros.data;
+          const hora = parametros.hora;
+          const telefone = parametros.telefone;
           const response = await axios.get(`${WEB_APP_URL}?action=agendar&cliente=${cliente}&servico=${servico}&data=${data}&hora=${hora}&telefone=${telefone}`);
           await sock.sendMessage(msg.key.remoteJid, { text: response.data });
           break;

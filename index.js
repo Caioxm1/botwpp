@@ -882,15 +882,13 @@ async function processarComandoAdministrativo(texto, jid) {
       if (!msg?.message || !msg.key?.remoteJid) return;
       
       const jid = msg.key.remoteJid;
+      const texto = msg.message.conversation?.trim().toLowerCase() || ''; // Declare aqui
+      const remetenteId = msg.key.participant || jid; // Declaração única
   
       // Processar comandos administrativos primeiro
       if (await processarComandoAdministrativo(texto, jid)) {
         return;
       }
-
-      // Declare a variável remetenteId apenas uma vez
-      const remetenteId = msg.key.participant || msg.key.remoteJid; 
-      const texto = msg.message.conversation.trim().toLowerCase();
 
       // Fluxo de Mensagens Automáticas
       if (texto.toLowerCase().includes("agendar") || texto === "iniciar") {
@@ -919,11 +917,11 @@ async function processarComandoAdministrativo(texto, jid) {
 
       // Verificação 3 - Permissões
       const isGrupoValido = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
-      const remetenteValido = USUARIOS_AUTORIZADOS.includes(msg.key.participant?.split('@')[0]);
-      const grupoAutorizado = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
+      const remetenteValido = USUARIOS_AUTORIZADOS.includes(remetenteId.split('@')[0]);
+      const grupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
       
       if (!grupoAutorizado || !remetenteValido) {
-        console.log("Acesso negado para:", msg.key.participant);
+        console.log("Acesso negado para:", remetenteId);
         return;
       }
 

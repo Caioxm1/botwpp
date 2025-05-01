@@ -12,7 +12,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzcXwxxzDG_GIrMclEx_VmdKOEYFIBU33xNwC8abiC1AyB0NVXnoklmBbtxQFQaI1Ow/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxPK8MlW5htHyTDdgvo_uKr22Vbte1EQd-Y5kHVLuvSvzP3qz-45kyACd7Op01DD4kdDA/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -69,7 +69,7 @@ const fluxoAgendamento = {
       await axios.get(`${WEB_APP_URL}?action=salvarServicos&telefone=${telefone}&servicos=${JSON.stringify(servicosEscolhidos.data)}`);
       
       // Busca disponibilidade
-      const horarios = await axios.get(`${WEB_APP_URL}?action=verificarHorarios`);
+      const horariosDisponiveis = await axios.get(`${WEB_APP_URL}?action=verificarHorarios`);
       
       return {
         mensagem: `📅 *Horários Disponíveis:*\n\n${horarios.data.join('\n')}\n\nEscolha um horário (Ex: 25/05 15:00)`,
@@ -210,33 +210,26 @@ async function processarEtapaAgendamento(jid, telefone, resposta) {
       });
       break;
 
-    case 'AGUARDANDO_DATA':
-      sessao.dados.data = resposta;
-      sessao.etapa = 'AGUARDANDO_HORARIO';
-      
-      const horarios = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${resposta}`);
-      await sock.sendMessage(jid, {
-        text: `⏰ Horários disponíveis:\n${horarios.data.join('\n')}`
-      });
-      break;
-
-    case 'AGUARDANDO_HORARIO':
-      sessao.dados.horario = resposta;
-      
-      // Registrar na planilha
-      await axios.get(`${WEB_APP_URL}?action=registrarAgendamento` + 
-        `&nome=${encodeURIComponent(sessao.dados.nome)}` +
-        `&servicos=${encodeURIComponent(JSON.stringify(sessao.dados.servicos))}` +
-        `&data=${sessao.dados.data}` +
-        `&horario=${sessao.dados.horario}`
-      );
-      
-      await sock.sendMessage(jid, {
-        text: `✅ Agendamento confirmado para ${sessao.dados.data} às ${sessao.dados.horario}!`
-      });
-      
-      sessoesAgendamento.delete(telefone);
-      break;
+      case 'AGUARDANDO_DATA':
+        sessao.dados.data = resposta;
+        sessao.etapa = 'AGUARDANDO_HORARIO';
+        
+        const responseHorarios = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${resposta}`);
+        
+        // Verificação e tratamento da resposta
+        if (!responseHorarios.data.success || !Array.isArray(responseHorarios.data.horarios)) {
+          console.error("Resposta inválida da API:", responseHorarios.data);
+          throw new Error("Erro ao buscar horários");
+        }
+        
+        const listaHorarios = responseHorarios.data.horarios.length > 0 
+          ? responseHorarios.data.horarios.join('\n') 
+          : "Nenhum horário disponível";
+        
+        await sock.sendMessage(jid, {
+          text: `⏰ Horários disponíveis:\n${listaHorarios}`
+        });
+        break;
   }
 }
 

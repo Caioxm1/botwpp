@@ -800,23 +800,6 @@ async function gerarGrafico(tipo, dados) {
 // Função para verificar se a mensagem parece ser um comando financeiro
 function pareceSerComandoFinanceiro(texto) {
 
-// Nova função assíncrona para processar comandos
-async function processarComandoAdministrativo(texto, jid) {
-  if (texto.startsWith('/')) {
-    const [comandoBruto, ...params] = texto.split(' ');
-    const comando = comandoBruto.replace('/', '').toLowerCase();
-    
-    if (comando === 'adicionar' && params[0] === 'servico') {
-      const [nome, duracao, preco] = params.slice(1);
-      await axios.get(`${WEB_APP_URL}?action=adicionarServico&nome=${nome}&duracao=${duracao}&preco=${preco}`);
-      await sock.sendMessage(jid, { text: `✅ Serviço "${nome}" cadastrado!` });
-      return true; // Indica que o comando foi processado
-    }
-  }
-  return false; // Não era um comando administrativo
-}
-  
-
   const palavrasChaveFinanceiras = [
     "análise", "pdf", "Pdf", "PDF", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
     "orçamento", "dívida", "lembrete", "histórico", "historico", "lista de dividas",
@@ -873,13 +856,36 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     if (connection === 'close') setTimeout(iniciarConexaoWhatsApp, 5000);
   });
 
+
+
+  // Função para processar comandos administrativos
+async function processarComandoAdministrativo(texto, jid) {
+  if (texto.startsWith('/')) {
+    const [comandoBruto, ...params] = texto.split(' ');
+    const comando = comandoBruto.replace('/', '').toLowerCase();
+    
+    if (comando === 'adicionar' && params[0] === 'servico') {
+      const [nome, duracao, preco] = params.slice(1);
+      await axios.get(`${WEB_APP_URL}?action=adicionarServico&nome=${nome}&duracao=${duracao}&preco=${preco}`);
+      await sock.sendMessage(jid, { text: `✅ Serviço "${nome}" cadastrado!` });
+      return true;
+    }
+  }
+  return false;
+}
+
+
+
   sock.ev.on('messages.upsert', async ({ messages }) => {
     try {
       const msg = messages[0];
       if (!msg?.message || !msg.key?.remoteJid) return;
-
-      if (await processarComandoAdministrativo(texto, msg.key.remoteJid)) {
-        return; // Comando já foi processado
+      
+      const jid = msg.key.remoteJid;
+  
+      // Processar comandos administrativos primeiro
+      if (await processarComandoAdministrativo(texto, jid)) {
+        return;
       }
 
       // Declare a variável remetenteId apenas uma vez

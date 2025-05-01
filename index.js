@@ -399,11 +399,10 @@ async function interpretarMensagemComOpenRouter(texto) {
             **Instruções Especiais:**
             Se a mensagem começar com '/', interprete como comando técnico direto SEM conversação.
             Exemplo:
-            - Mensagem: '/adicionar servico Corte 30 60'
+            - Mensagem: '/adicionar serviço Corte 30 60'
             - JSON: { "comando": "adicionar servico", "parametros": { "nome": "Corte", "duracao": 30, "preco": 60 } }
             
-            Exemplo:
-            - Mensagem: '/adicionar servico Corte Degradê 30 60'
+            - Mensagem: '/adicionar serviço Corte Degradê 30 60'
             - JSON: { "comando": "adicionar servico", "parametros": { "nome": "Corte Degradê", "duracao": 30, "preco": 60 } }
 
 

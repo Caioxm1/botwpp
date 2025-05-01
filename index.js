@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxFHd1TSmUF_a3jZpogiC_0zbVVH4lVMS_kNJPIVcO3r5CwtCAxMPLxskAV4mjFbhB7/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwdN-MhUlosEpnY9NInE7aDJOqshWLYBpePORQigIwJxQFilnvliplZrsMjbtyv7WvQdQ/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -396,6 +396,11 @@ async function interpretarMensagemComOpenRouter(texto) {
               - Mensagem: "Pdf"
               JSON: { "comando": "pdf", "parametros": {} }
 
+            **Instruções Especiais:**
+            Se a mensagem começar com '/', interprete como comando técnico direto SEM conversação.
+            Exemplo:
+            - Mensagem: '/adicionar servico Corte 30 60'
+            - JSON: { "comando": "adicionar servico", "parametros": { "nome": "Corte", "duracao": 30, "preco": 60 } }
 
             1º **Instruções Especiais:**
             - Se a mensagem se referir a compras de alimentos (como verduras, legumes, frutas, carnes, etc.), a categoria deve ser sempre "Alimentação".
@@ -794,6 +799,13 @@ async function gerarGrafico(tipo, dados) {
 
 // Função para verificar se a mensagem parece ser um comando financeiro
 function pareceSerComandoFinanceiro(texto) {
+  if (texto.startsWith('/')) {
+    const comando = texto.split(' ')[0].replace('/', '');
+    const parametros = texto.split(' ').slice(1);
+    return true; // Comandos administrativos
+  }
+
+
   const palavrasChaveFinanceiras = [
     "análise", "pdf", "Pdf", "PDF", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
     "orçamento", "dívida", "lembrete", "histórico", "historico", "lista de dividas",
@@ -804,6 +816,8 @@ function pareceSerComandoFinanceiro(texto) {
     "consultar pedidos", "ver pedidos", "listar pedidos", "saida de", "Paguei", "Tirei",
     "lista de pedidos", "pedidos do cliente", "ver pedidos",
     "listar clientes", "clientes registrados", "ver clientes",
+    "agendar", "serviço", "horário", "remarcar",
+    "cancelar", "pagamento", "disponibilidade", "servico",
     "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
   ];
 
@@ -1238,6 +1252,15 @@ case 'análise': {
             });
             break;
           }
+
+          case 'adicionar':
+            if(parametros[0] === 'servico') {
+              const [nome, duracao, preco] = parametros.slice(1);
+              await axios.get(`${WEB_APP_URL}?action=adicionarServico&nome=${nome}&duracao=${duracao}&preco=${preco}`);
+              await sock.sendMessage(jid, { text: `✅ Serviço "${nome}" adicionado!` });
+            }
+            break;
+
 
           // CASO 'resumo'
           case 'resumo': { // <--- Adicione chaves aqui

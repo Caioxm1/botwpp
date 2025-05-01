@@ -30,6 +30,9 @@ const wss = new WebSocket.Server({ port: 8080 });
 
 let ultimoComandoProcessado = null;
 
+// Declare sock no escopo global
+let sock = null;
+
 // Depois faça o log das configurações
 console.log("Grupos permitidos:", GRUPOS_PERMITIDOS);
 console.log("Usuários autorizados:", USUARIOS_AUTORIZADOS);
@@ -580,8 +583,6 @@ async function processarComandoLocal(texto, jid) {
 
 // Função principal do bot
 async function iniciarConexaoWhatsApp() {
-  let sock = null;
-
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   
   sock = makeWASocket({

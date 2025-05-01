@@ -3,7 +3,6 @@ const crypto = require('crypto');
 globalThis.crypto = crypto.webcrypto;
 const { default: makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 const axios = require('axios');
-const sessoesAgendamento = new Map();
 const express = require('express');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
@@ -12,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz7-o8p9HDj1KFGmbHkPW_jvOj7Ekj1qyYo607BSY6cTo5baQNhj7UyfvOLPeaVySng/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyRIy1Z6BRckDWYYxp3mRia1nAlJeZ7wUWkMTZPZc5gyuBniLLt2v8cSzeXbClezJf57g/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -34,51 +33,6 @@ let ultimoComandoProcessado = null;
 // Depois faça o log das configurações
 console.log("Grupos permitidos:", GRUPOS_PERMITIDOS);
 console.log("Usuários autorizados:", USUARIOS_AUTORIZADOS);
-
-// Configure no início do arquivo
-const fluxoAgendamento = {
-  INICIO: {
-    mensagem: (nome) => `Olá ${nome}! Vamos agendar seu serviço? Qual seu nome completo?`,
-    proximoEstado: 'AGUARDANDO_NOME'
-  },
-  AGUARDANDO_NOME: {
-    acao: async (telefone, resposta) => {
-      // Salva nome na planilha
-      await axios.get(`${WEB_APP_URL}?action=atualizarEtapa&telefone=${telefone}&etapa=AGUARDANDO_SERVICO&nome=${resposta}`);
-      
-      // Busca serviços
-      const servicos = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
-      console.log('Resposta da API - Serviços:', servicos.data); // Verifique se é um array
-      const listaServicos = servicos.data.map(s => `🔹 ${s.nome} - R$ ${s.preco} (${s.duracao}min)`).join('\n');
-      
-      return {
-        mensagem: `🛎️ *Serviços Disponíveis:*\n\n${listaServicos}\n\nDigite os números dos serviços desejados (Ex: 1,3)`,
-        proximoEstado: 'AGUARDANDO_SERVICOS'
-      };
-    }
-  },
-  AGUARDANDO_SERVIÇOS: {
-    acao: async (telefone, resposta) => {
-      // Valida números
-      const numeros = resposta.split(',').map(n => parseInt(n.trim()));
-      
-      // Obtém detalhes
-      const servicosEscolhidos = await axios.get(`${WEB_APP_URL}?action=obterServicos&ids=${numeros.join(',')}`);
-      
-      // Salva na planilha
-      await axios.get(`${WEB_APP_URL}?action=salvarServicos&telefone=${telefone}&servicos=${JSON.stringify(servicosEscolhidos.data)}`);
-      
-      // Busca disponibilidade
-      const horariosDisponiveis = await axios.get(`${WEB_APP_URL}?action=verificarHorarios`);
-      
-      return {
-        mensagem: `📅 *Horários Disponíveis:*\n\n${horarios.data.join('\n')}\n\nEscolha um horário (Ex: 25/05 15:00)`,
-        proximoEstado: 'AGUARDANDO_HORARIO'
-      };
-    }
-  },
-  // ... Continue o padrão para outras etapas
-};
 
 // Endpoint para enviar mensagens
 app.post('/api/send-message', async (req, res) => {
@@ -115,11 +69,6 @@ const LISTA_DE_COMANDOS = `
 - adicionar pedido [cliente] [produto] [quantidade] [precoUnitario]: Registra um novo pedido para um cliente com detalhes do produto, quantidade e preço.
 - consultar pedidos [cliente] [data]: Consulta todos os pedidos de um cliente (opcional: filtra por data). Sinônimos: "lista de pedidos", "ver pedidos", "pedidos do cliente".
 - listar clientes: Mostra todos os clientes cadastrados no sistema. Sinônimos: "meus clientes", "clientes registrados", "quais são meus clientes".
-
-📅 *Agendamentos*
-- agendar [serviço] [data] [hora]: Agenda um novo serviço
-- meus agendamentos: Lista seus compromissos
-- cancelar agendamento [id]: Cancela um agendamento
 
 📈 *Análise Inteligente*
 - análise: Gera uma análise detalhada dos gastos e insights financeiros.
@@ -166,101 +115,6 @@ const LISTA_DE_COMANDOS = `
 🔧 *Ajuda*
 - ajuda: Mostra esta lista de comandos.
 `;
-
-
-
-// Função para iniciar o fluxo
-async function iniciarFluxoAgendamento(jid, telefone) {
-  sessoesAgendamento.set(telefone, {
-    etapa: 'AGUARDANDO_NOME',
-    dados: {}
-  });
-  
-  await sock.sendMessage(jid, { 
-    text: `Olá! Vamos agendar seu serviço? Qual seu nome completo?`
-  });
-}
-
-// Função para processar respostas
-async function processarEtapaAgendamento(jid, telefone, resposta) {
-  const sessao = sessoesAgendamento.get(telefone);
-  
-  switch(sessao.etapa) {
-    case 'AGUARDANDO_NOME':
-      sessao.dados.nome = resposta;
-      sessao.etapa = 'AGUARDANDO_SERVICO';
-      
-      const servicos = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
-      const lista = servicos.data.map((s, i) => `${i+1}. ${s.nome} - R$ ${s.preco}`).join('\n');
-      
-      await sock.sendMessage(jid, {
-        text: `🛎️ *Serviços Disponíveis:*\n\n${lista}\n\nDigite os números dos serviços desejados (Ex: 1,3)`
-      });
-      break;
-
-    case 'AGUARDANDO_SERVICO':
-      const numeros = resposta.split(',').map(n => parseInt(n.trim()) - 1);
-      const servicosEscolhidos = await axios.get(`${WEB_APP_URL}?action=obterServicos&ids=${numeros.join(',')}`);
-      
-      sessao.dados.servicos = servicosEscolhidos.data;
-      sessao.etapa = 'AGUARDANDO_DATA';
-      
-      await sock.sendMessage(jid, {
-        text: `📅 Digite a data desejada (Formato DD/MM/AAAA):`
-      });
-      break;
-
-      case 'AGUARDANDO_DATA':
-        sessao.dados.data = resposta;
-        sessao.etapa = 'AGUARDANDO_HORARIO';
-        
-        const responseHorarios = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${resposta}`);
-        
-        if (!responseHorarios.data.success || !Array.isArray(responseHorarios.data.horarios)) {
-          console.error("Resposta inválida da API:", responseHorarios.data);
-          throw new Error("Erro ao buscar horários");
-        }
-        
-        const listaHorarios = responseHorarios.data.horarios.length > 0 
-          ? responseHorarios.data.horarios.join('\n') 
-          : "Nenhum horário disponível";
-        
-        await sock.sendMessage(jid, {
-          text: `⏰ *Horários Disponíveis:*\n\n${listaHorarios}\n\nDigite o horário desejado (Ex: 09:00)`
-        });
-        break;
-
-      
-// Adicione este case na função processarEtapaAgendamento
-case 'AGUARDANDO_HORARIO':
-  sessao.dados.horario = resposta;
-
-  const telefone = sessao.telefone; // Certifique-se que está sendo armazenado corretamente
-
-  // Registrar na planilha
-  await axios.get(`${WEB_APP_URL}?action=registrarAgendamento` + 
-    `&nome=${encodeURIComponent(sessao.dados.nome)}` +
-    `&servicos=${encodeURIComponent(JSON.stringify(sessao.dados.servicos))}` +
-    `&data=${sessao.dados.data}` +
-    `&horario=${sessao.dados.horario}` +
-    `&telefone=${telefone}` // Adicione esta linha
-  );
-
-  await sock.sendMessage(jid, {
-    text: `✅ Agendamento confirmado para ${sessao.dados.data} às ${sessao.dados.horario}!`
-  });
-
-  sessoesAgendamento.delete(telefone);
-  break;
-
-
-  }
-}
-
-
-
-
-
 
 // Função para interpretar mensagens usando o OpenRouter
 async function interpretarMensagemComOpenRouter(texto) {
@@ -492,16 +346,6 @@ async function interpretarMensagemComOpenRouter(texto) {
 
               - Mensagem: "Pdf"
               JSON: { "comando": "pdf", "parametros": {} }
-
-            **Instruções Especiais:**
-            Se a mensagem começar com '/', interprete como comando técnico direto SEM conversação.
-            Exemplo:
-            - Mensagem: '/adicionar serviço Corte 30 60'
-            - JSON: { "comando": "adicionar servico", "parametros": { "nome": "Corte", "duracao": 30, "preco": 60 } }
-            
-            - Mensagem: '/adicionar serviço Corte Degradê 30 60'
-            - JSON: { "comando": "adicionar servico", "parametros": { "nome": "Corte Degradê", "duracao": 30, "preco": 60 } }
-
 
 
             1º **Instruções Especiais:**
@@ -901,7 +745,6 @@ async function gerarGrafico(tipo, dados) {
 
 // Função para verificar se a mensagem parece ser um comando financeiro
 function pareceSerComandoFinanceiro(texto) {
-
   const palavrasChaveFinanceiras = [
     "análise", "pdf", "Pdf", "PDF", "analise","resumo", "poupança", "entrada", "saída", "média", "gráfico", "categoria", 
     "orçamento", "dívida", "lembrete", "histórico", "historico", "lista de dividas",
@@ -912,8 +755,6 @@ function pareceSerComandoFinanceiro(texto) {
     "consultar pedidos", "ver pedidos", "listar pedidos", "saida de", "Paguei", "Tirei",
     "lista de pedidos", "pedidos do cliente", "ver pedidos",
     "listar clientes", "clientes registrados", "ver clientes",
-    "agendar", "serviço", "horário", "remarcar",
-    "cancelar", "pagamento", "disponibilidade", "servico",
     "Quais são os meus clientes", "Quais são os clientes", "meus clientes", "clientes cadastrados", "quais clientes"
   ];
 
@@ -958,189 +799,131 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     if (connection === 'close') setTimeout(iniciarConexaoWhatsApp, 5000);
   });
 
-
-
-  // Função para processar comandos administrativos
-async function processarComandoAdministrativo(texto, jid) {
-  if (texto.startsWith('/')) {
-    const [comandoBruto, ...params] = texto.split(' ');
-    const comando = comandoBruto.replace('/', '').toLowerCase();
-    
-    if (comando === 'adicionar' && params[0] === 'servico') {
-      const [nome, duracao, preco] = params.slice(1);
-      await axios.get(`${WEB_APP_URL}?action=adicionarServico&nome=${nome}&duracao=${duracao}&preco=${preco}`);
-      await sock.sendMessage(jid, { text: `✅ Serviço "${nome}" cadastrado!` });
-      return true;
-    }
-  }
-  return false;
-}
-
-
-
   sock.ev.on('messages.upsert', async ({ messages }) => {
     try {
       const msg = messages[0];
       if (!msg?.message || !msg.key?.remoteJid) return;
-      
-      const jid = msg.key.remoteJid;
-      const texto = msg.message.conversation?.trim().toLowerCase() || ''; // Declare aqui
-      const remetenteId = msg.key.participant || jid; // Declaração única
-
-      const telefone = remetenteId.replace(/@s\.whatsapp\.net/, '');
-
-      // Verifica se está em fluxo de agendamento
-      if (sessoesAgendamento.has(telefone)) {
-        await processarEtapaAgendamento(jid, telefone, texto);
-        return;
-      }
-      
-      // Inicia novo agendamento
-      if (texto.toLowerCase().includes("agendar")) {
-        await iniciarFluxoAgendamento(jid, telefone);
-        return;
-      }
-  
-      // Processar comandos administrativos primeiro
-      if (await processarComandoAdministrativo(texto, jid)) {
-        return;
-      }
-
-      // Fluxo de Mensagens Automáticas
-      if (texto.toLowerCase().includes("agendar") || texto === "iniciar") {
-        // Usar remetenteId já declarado
-        const usuario = await axios.get(`${WEB_APP_URL}?action=verificarUsuario&telefone=${remetenteId}`);
-        
-        // Remova esta linha que redeclara a variável ↓
-        // const remetenteId = msg.key.participant || msg.key.remoteJid;
-      }
-
-      // Depois verifica usuário autorizado (mesmo em grupos)
-      // Remova esta redeclaração ↓
-      // const remetenteId = msg.key.participant || msg.key.remoteJid;
-      if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
-        console.log("Usuário não autorizado:", remetenteId);
-        return;
-      }
-
-      const remetente = msg?.pushName || "Usuário";
-
-      // Log para depuração
-      console.log(`=== Nova mensagem ===`);
-      console.log(`De: ${msg.key.participant || msg.key.remoteJid}`);
-      console.log(`Texto: ${texto}`);
-      console.log(`Grupo: ${msg.key.remoteJid}`);
-
-      // Verificação 3 - Permissões
-      const isGrupoValido = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
-      const isAdmin = USUARIOS_AUTORIZADOS.includes(remetenteId);
-      const isGrupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
-      
-      if (!isGrupoAutorizado) {
-        console.log("Grupo não autorizado:", jid);
-        return;
-      }
-
-      // Bloqueia comandos administrativos de não-admins
-      if (texto.startsWith('/') && !isAdmin) {
-        console.log("Acesso negado para comando administrativo:", remetenteId);
-        return;
-      }
-
-    // Verificação única da mensagem
-      if (
-        !msg?.message || 
-        !msg.key?.remoteJid || 
-        typeof msg.message.conversation !== 'string'
-      ) {
-        console.log("Mensagem ignorada (formato inválido).");
-        return;
-      }
-        
-        // Verificação completa da estrutura da mensagem
-        if (
-          !msg?.message || 
-          !msg.key?.remoteJid || 
-          typeof msg.message.conversation !== 'string'
-      ) {
-          console.log("Mensagem ignorada (formato inválido).");
-          return;
-      }
-
-      // Comando !id (funciona em qualquer grupo)
-      if (texto.toLowerCase() === "!id") {
-        const grupoId = msg.key.remoteJid;
-        await sock.sendMessage(grupoId, { 
-          text: `🔑 ID deste grupo: *${grupoId}*` 
-        });
-        return;
-      }
-
-      // --- Verificações de grupo e usuário ---
-      console.log("Grupo Remetente:", msg.key.remoteJid);
-      
-      // Primeiro verifica se é um grupo permitido
-      if (GRUPOS_PERMITIDOS.includes(msg.key.remoteJid)) {
-        console.log("Mensagem de grupo autorizado:", msg.key.remoteJid);
-      } else {
-        console .log("Grupo não autorizado ou chat privado:", msg.key.remoteJid);
-        return; // Ignora mensagens de grupos não autorizados e chats privados
-      }
-
-      // Ignora apenas mensagens que começam com "❌" (respostas automáticas do bot)
-      if (msg.message.conversation?.startsWith("❌")) {
-        console.log("Mensagem ignorada (resposta automática do bot).");
-        return;
-      }
-
-        // Verifica se a mensagem é do tipo 'conversation' (texto)
-        if (!GRUPOS_PERMITIDOS.includes(msg.key.remoteJid)) return;
-
-        // Verifica se a mensagem é antiga (mais de 60 segundos)
-        const mensagemTimestamp = msg.messageTimestamp;
-        const agora = Math.floor(Date.now() / 1000);
-        if (agora - mensagemTimestamp > 60) {
-          console.log("Mensagem ignorada (é uma mensagem antiga).");
-          return;
-        }
-
-        console.log("Mensagem recebida:", JSON.stringify(msg, null, 2));
-
-      // Nome do remetente (apenas para exibição)
-      const remetenteNome = msg.pushName || "Usuário"; // Nome exibido no WhatsApp
-    // Comando para obter o ID do grupo
-    if (texto.toLowerCase() === "!id") {
-      const grupoId = msg.key.remoteJid;
-      await sock.sendMessage(grupoId, { 
-        text: `📌 ID deste grupo: *${grupoId}*` 
-      });
-      return;
-    }
-          
-    console.log("Texto da mensagem:", texto);
-
     
 
-        // --- VERIFICAÇÃO DO COMANDO "AJUDA" ---
-      if (texto.toLowerCase() === "ajuda") {
-        await sock.sendMessage(msg.key.remoteJid, { text: LISTA_DE_COMANDOS });
-        return; // Encerra o processamento aqui
-      }
+  const remetente = msg?.pushName || "Usuário";
+  const texto = msg.message.conversation.trim().toLowerCase();
 
-        try {
-          if (pareceSerComandoFinanceiro(texto)) {
-            console.log("Tentando interpretar a mensagem como um comando financeiro...");
-            const interpretacao = await interpretarMensagemComOpenRouter(texto);
-            console.log("Interpretação da mensagem:", interpretacao);
+  // Log para depuração
+  console.log(`=== Nova mensagem ===`);
+  console.log(`De: ${msg.key.participant || msg.key.remoteJid}`);
+  console.log(`Texto: ${texto}`);
+  console.log(`Grupo: ${msg.key.remoteJid}`);
+
+  // Verificação 3 - Permissões
+  const isGrupoValido = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
+  const isUsuarioValido = USUARIOS_AUTORIZADOS.includes(msg.key.participant);
+
+  if (!isGrupoValido && !isUsuarioValido) {
+    console.log("Mensagem bloqueada por permissões");
+    return;
+  }
+
+// Verificação única da mensagem
+  if (
+    !msg?.message || 
+    !msg.key?.remoteJid || 
+    typeof msg.message.conversation !== 'string'
+  ) {
+    console.log("Mensagem ignorada (formato inválido).");
+    return;
+  }
+    
+    // Verificação completa da estrutura da mensagem
+    if (
+      !msg?.message || 
+      !msg.key?.remoteJid || 
+      typeof msg.message.conversation !== 'string'
+  ) {
+      console.log("Mensagem ignorada (formato inválido).");
+      return;
+  }
+
+  // Comando !id (funciona em qualquer grupo)
+  if (texto.toLowerCase() === "!id") {
+    const grupoId = msg.key.remoteJid;
+    await sock.sendMessage(grupoId, { 
+      text: `🔑 ID deste grupo: *${grupoId}*` 
+    });
+    return;
+  }
+
+  // --- Verificações de grupo e usuário ---
+  console.log("Grupo Remetente:", msg.key.remoteJid);
+  
+  // Primeiro verifica se é um grupo permitido
+  if (GRUPOS_PERMITIDOS.includes(msg.key.remoteJid)) {
+    console.log("Mensagem de grupo autorizado:", msg.key.remoteJid);
+  } else {
+    console .log("Grupo não autorizado ou chat privado:", msg.key.remoteJid);
+    return; // Ignora mensagens de grupos não autorizados e chats privados
+  }
+
+  // Depois verifica usuário autorizado (mesmo em grupos)
+const remetenteId = msg.key.participant || msg.key.remoteJid;
+if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
+  console.log("Usuário não autorizado:", remetenteId);
+  return;
+}
+
+    // Ignora apenas mensagens que começam com "❌" (respostas automáticas do bot)
+    if (msg.message.conversation?.startsWith("❌")) {
+      console.log("Mensagem ignorada (resposta automática do bot).");
+      return;
+    }
+
+    // Verifica se a mensagem é do tipo 'conversation' (texto)
+    if (!GRUPOS_PERMITIDOS.includes(msg.key.remoteJid)) return;
+
+    // Verifica se a mensagem é antiga (mais de 60 segundos)
+    const mensagemTimestamp = msg.messageTimestamp;
+    const agora = Math.floor(Date.now() / 1000);
+    if (agora - mensagemTimestamp > 60) {
+      console.log("Mensagem ignorada (é uma mensagem antiga).");
+      return;
+    }
+
+    console.log("Mensagem recebida:", JSON.stringify(msg, null, 2));
+
+  // Nome do remetente (apenas para exibição)
+  const remetenteNome = msg.pushName || "Usuário"; // Nome exibido no WhatsApp
+// Comando para obter o ID do grupo
+if (texto.toLowerCase() === "!id") {
+  const grupoId = msg.key.remoteJid;
+  await sock.sendMessage(grupoId, { 
+    text: `📌 ID deste grupo: *${grupoId}*` 
+  });
+  return;
+}
       
-            // Se o OpenRouter retornou um comando válido
-            if (interpretacao?.comando) {
-              const { comando, parametros } = interpretacao;
-              console.log("Comando interpretado:", comando);
-              console.log("Parâmetros interpretados:", parametros);
+  console.log("Texto da mensagem:", texto);
 
-          // Processa o comando financeiro
-          switch (comando) {
+  
+
+    // --- VERIFICAÇÃO DO COMANDO "AJUDA" ---
+  if (texto.toLowerCase() === "ajuda") {
+    await sock.sendMessage(msg.key.remoteJid, { text: LISTA_DE_COMANDOS });
+    return; // Encerra o processamento aqui
+  }
+
+    try {
+      if (pareceSerComandoFinanceiro(texto)) {
+        console.log("Tentando interpretar a mensagem como um comando financeiro...");
+        const interpretacao = await interpretarMensagemComOpenRouter(texto);
+        console.log("Interpretação da mensagem:", interpretacao);
+  
+        // Se o OpenRouter retornou um comando válido
+        if (interpretacao?.comando) {
+          const { comando, parametros } = interpretacao;
+          console.log("Comando interpretado:", comando);
+          console.log("Parâmetros interpretados:", parametros);
+
+      // Processa o comando financeiro
+      switch (comando) {
 
 case 'pdf': {
   try {
@@ -1163,7 +946,7 @@ case 'pdf': {
 }
 
 
-            
+          
 case 'dívida pagar': {
   const numero = parametros.número;
   const semSaida = parametros.semSaida || false;
@@ -1206,7 +989,7 @@ case 'dívida detalhes': {
   break;
 }
 
-            
+          
 case 'dívida listar': {
   try {
     const { filtro = '', categoria = '' } = parametros || {};
@@ -1266,7 +1049,7 @@ case 'dívida alerta': {
   break;
 }
 
-            
+          
 case 'análise': {
   console.log("Processando comando 'análise'...");
   try {
@@ -1306,454 +1089,425 @@ case 'análise': {
   }
   break;
 }
-            
-          case 'listar clientes': {
-            console.log("Processando comando 'listar clientes'...");
-            const response = await axios.get(`${WEB_APP_URL}?action=listarClientes`);
-            const clientes = response.data.clientes;
           
-            if (clientes.length === 0) {
-              await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhum cliente registrado." });
-              return;
-            }
-          
-            const listaClientes = clientes.map((cliente, index) => `${index + 1}. ${cliente}`).join('\n');
-            await sock.sendMessage(msg.key.remoteJid, { text: `📋 *Clientes Registrados*:\n\n${listaClientes}` });
-            break;
-          }
-
-          case 'consultar pedidos': {
-          console.log("Processando comando 'consultar pedidos'...");
-          const cliente = parametros.cliente;
-          let dataFormatada = parametros.data;
+        case 'listar clientes': {
+          console.log("Processando comando 'listar clientes'...");
+          const response = await axios.get(`${WEB_APP_URL}?action=listarClientes`);
+          const clientes = response.data.clientes;
         
-          if (dataFormatada && dataFormatada.match(/^\d{2}\/\d{2}$/)) {
-            dataFormatada += `/${new Date().getFullYear()}`;
+          if (clientes.length === 0) {
+            await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhum cliente registrado." });
+            return;
           }
         
-          try {
-            const response = await axios.get(
-              `${WEB_APP_URL}?action=consultarPedidos&cliente=${encodeURIComponent(cliente)}&data=${encodeURIComponent(dataFormatada)}`
-            );
-            
-            const pedidos = response.data;
-        
-            if (!pedidos || pedidos.length === 0) {
-              await sock.sendMessage(msg.key.remoteJid, { 
-                text: `📭 Nenhum pedido encontrado para *${cliente}* em *${dataFormatada}*.` 
-              });
-              return;
-            }
-        
-            let mensagem = `📅 Pedidos para *${cliente}* em *${dataFormatada}*:\n\n`;
-            let totalPedido = 0;
-        
-            pedidos.forEach((pedido) => {
-              mensagem += `----------------------------------------\n`;
-              mensagem += `🍅 *Produto*: ${pedido.produto}\n`;
-              mensagem += `💵 *Preço Unitário*: R$ ${pedido.precoUnitario}\n`;
-              mensagem += `📦 *Quantidade*: ${pedido.quantidade}\n`;
-              
-              const totalProduto = typeof pedido.total === 'number' 
-                ? pedido.total.toFixed(2).replace(".", ",") 
-                : pedido.total.toString().replace(".", ",");
-              
-              mensagem += `💰 *Total do Produto*: R$ ${totalProduto}\n`;
-              totalPedido += parseFloat(pedido.total.toString().replace(",", "."));
-            });
-        
-            mensagem += `💼 *Valor Total do Pedido*: R$ ${totalPedido.toFixed(2).replace(".", ",")}`;
-        
-            await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
-          } catch (error) {
-            console.error("Erro ao consultar pedidos:", error);
-            await sock.sendMessage(msg.key.remoteJid, { 
-              text: "❌ Erro ao buscar pedidos. Verifique o formato da data (DD/MM/AAAA)." 
-            });
-          }
-          break; // Fechamento correto do case
-        }    
-          case 'adicionar pedido': {
-            console.log("Processando comando 'adicionar pedido'...");
-            const cliente = parametros.cliente;
-            const produto = parametros.produto;
-            const quantidade = parametros.quantidade || 1; // Padrão: 1
-            const precoUnitario = parseFloat(parametros.precoUnitario).toFixed(2).replace(".", ",");
-            const total = (quantidade * parseFloat(parametros.precoUnitario)).toFixed(2).replace(".", ",");
-          
-            await axios.get(
-              `${WEB_APP_URL}?action=adicionarPedido&cliente=${cliente}&produto=${produto}&quantidade=${quantidade}&precoUnitario=${precoUnitario}&total=${total}`
-            );
-            
-            await sock.sendMessage(msg.key.remoteJid, { 
-              text: `✅ Pedido registrado para ${cliente}:\n\n` +
-                    `📦 Produto: ${produto}\n` +
-                    `📦 Quantidade: ${quantidade}\n` +
-                    `💵 Preço Unitário: R$ ${precoUnitario}\n` +
-                    `💰 Total: R$ ${total}`
-            });
-            break;
-          }
+          const listaClientes = clientes.map((cliente, index) => `${index + 1}. ${cliente}`).join('\n');
+          await sock.sendMessage(msg.key.remoteJid, { text: `📋 *Clientes Registrados*:\n\n${listaClientes}` });
+          break;
+        }
 
-          case 'adicionar':
-            if(parametros[0] === 'servico') {
-              const [nome, duracao, preco] = parametros.slice(1);
-              await axios.get(`${WEB_APP_URL}?action=adicionarServico&nome=${nome}&duracao=${duracao}&preco=${preco}`);
-              await sock.sendMessage(jid, { text: `✅ Serviço "${nome}" adicionado!` });
-            }
-            break;
-
-
-          // CASO 'resumo'
-          case 'resumo': { // <--- Adicione chaves aqui
-            console.log("Processando comando 'resumo'...");
-            const resumoFinanceiro = await axios.get(`${WEB_APP_URL}?action=resumo`); // Renomeei para resumoFinanceiro
-            await sock.sendMessage(msg.key.remoteJid, { text: resumoFinanceiro.data });
-            break;
-          }
-
-          case 'poupança':
-    console.log("Processando comando 'poupança'...");
-    const valorPoupanca = parametros.valor;
-    // Alterado: remetente → remetenteNome
-    await axios.get(`${WEB_APP_URL}?action=adicionarPoupanca&valor=${valorPoupanca}&remetente=${remetenteNome}`);
-    await sock.sendMessage(msg.key.remoteJid, { text: `✅ R$ ${valorPoupanca} transferidos para a poupança.` });
-    break;
-
-   case 'entrada': {
-    console.log("Processando comando 'entrada'...");
-    const valorEntrada = parametros.valor;
-    const categoriaEntrada = parametros.categoria || "Outras Entradas"; // Nova categoria padrão
-    const descricaoEntrada = parametros.descricao || "";
-
-    await axios.get(`${WEB_APP_URL}?action=entrada&valor=${valorEntrada}&remetente=${remetenteNome}&categoria=${encodeURIComponent(categoriaEntrada)}&descricao=${encodeURIComponent(descricaoEntrada)}`);
-
-    await sock.sendMessage(msg.key.remoteJid, { 
-      text: `✅ Entrada registrada!\n\n` +
-            `💵 Valor: R$ ${valorEntrada}\n` +
-            `🏷️ Categoria: ${categoriaEntrada}\n` +
-            `📝 Descrição: ${descricaoEntrada || "Sem detalhes"}\n` +
-            `👤 Registrado por: ${remetenteNome}`
-    });
-    break;
-  }
-
-            case 'saída': {
-    console.log("Processando comando 'saída'...");
-    const valorSaida = parametros.valor;
-    let categoriaSaida = parametros.categoria || "Outros";
-    const remetente = msg.pushName || "Sistema";
-    const textoOriginal = msg.message.conversation.trim();
-
-    try {
-      // Verifica e cria categoria se necessário
-      const responseCategoria = await axios.get(
-        `${WEB_APP_URL}?action=verificarCriarCategoria&categoria=${encodeURIComponent(categoriaSaida)}`
-      );
+        case 'consultar pedidos': {
+        console.log("Processando comando 'consultar pedidos'...");
+        const cliente = parametros.cliente;
+        let dataFormatada = parametros.data;
       
-      // Se a categoria foi criada/modificada
-      categoriaSaida = responseCategoria.data.categoria || categoriaSaida;
+        if (dataFormatada && dataFormatada.match(/^\d{2}\/\d{2}$/)) {
+          dataFormatada += `/${new Date().getFullYear()}`;
+        }
+      
+        try {
+          const response = await axios.get(
+            `${WEB_APP_URL}?action=consultarPedidos&cliente=${encodeURIComponent(cliente)}&data=${encodeURIComponent(dataFormatada)}`
+          );
+          
+          const pedidos = response.data;
+      
+          if (!pedidos || pedidos.length === 0) {
+            await sock.sendMessage(msg.key.remoteJid, { 
+              text: `📭 Nenhum pedido encontrado para *${cliente}* em *${dataFormatada}*.` 
+            });
+            return;
+          }
+      
+          let mensagem = `📅 Pedidos para *${cliente}* em *${dataFormatada}*:\n\n`;
+          let totalPedido = 0;
+      
+          pedidos.forEach((pedido) => {
+            mensagem += `----------------------------------------\n`;
+            mensagem += `🍅 *Produto*: ${pedido.produto}\n`;
+            mensagem += `💵 *Preço Unitário*: R$ ${pedido.precoUnitario}\n`;
+            mensagem += `📦 *Quantidade*: ${pedido.quantidade}\n`;
+            
+            const totalProduto = typeof pedido.total === 'number' 
+              ? pedido.total.toFixed(2).replace(".", ",") 
+              : pedido.total.toString().replace(".", ",");
+            
+            mensagem += `💰 *Total do Produto*: R$ ${totalProduto}\n`;
+            totalPedido += parseFloat(pedido.total.toString().replace(",", "."));
+          });
+      
+          mensagem += `💼 *Valor Total do Pedido*: R$ ${totalPedido.toFixed(2).replace(".", ",")}`;
+      
+          await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+        } catch (error) {
+          console.error("Erro ao consultar pedidos:", error);
+          await sock.sendMessage(msg.key.remoteJid, { 
+            text: "❌ Erro ao buscar pedidos. Verifique o formato da data (DD/MM/AAAA)." 
+          });
+        }
+        break; // Fechamento correto do case
+      }    
+        case 'adicionar pedido': {
+          console.log("Processando comando 'adicionar pedido'...");
+          const cliente = parametros.cliente;
+          const produto = parametros.produto;
+          const quantidade = parametros.quantidade || 1; // Padrão: 1
+          const precoUnitario = parseFloat(parametros.precoUnitario).toFixed(2).replace(".", ",");
+          const total = (quantidade * parseFloat(parametros.precoUnitario)).toFixed(2).replace(".", ",");
+        
+          await axios.get(
+            `${WEB_APP_URL}?action=adicionarPedido&cliente=${cliente}&produto=${produto}&quantidade=${quantidade}&precoUnitario=${precoUnitario}&total=${total}`
+          );
+          
+          await sock.sendMessage(msg.key.remoteJid, { 
+            text: `✅ Pedido registrado para ${cliente}:\n\n` +
+                  `📦 Produto: ${produto}\n` +
+                  `📦 Quantidade: ${quantidade}\n` +
+                  `💵 Preço Unitário: R$ ${precoUnitario}\n` +
+                  `💰 Total: R$ ${total}`
+          });
+          break;
+        }
 
-      const responseSaida = await axios.get(
+        // CASO 'resumo'
+        case 'resumo': { // <--- Adicione chaves aqui
+          console.log("Processando comando 'resumo'...");
+          const resumoFinanceiro = await axios.get(`${WEB_APP_URL}?action=resumo`); // Renomeei para resumoFinanceiro
+          await sock.sendMessage(msg.key.remoteJid, { text: resumoFinanceiro.data });
+          break;
+        }
+
+        case 'poupança':
+  console.log("Processando comando 'poupança'...");
+  const valorPoupanca = parametros.valor;
+  // Alterado: remetente → remetenteNome
+  await axios.get(`${WEB_APP_URL}?action=adicionarPoupanca&valor=${valorPoupanca}&remetente=${remetenteNome}`);
+  await sock.sendMessage(msg.key.remoteJid, { text: `✅ R$ ${valorPoupanca} transferidos para a poupança.` });
+  break;
+
+ case 'entrada': {
+  console.log("Processando comando 'entrada'...");
+  const valorEntrada = parametros.valor;
+  const categoriaEntrada = parametros.categoria || "Outras Entradas"; // Nova categoria padrão
+  const descricaoEntrada = parametros.descricao || "";
+
+  await axios.get(`${WEB_APP_URL}?action=entrada&valor=${valorEntrada}&remetente=${remetenteNome}&categoria=${encodeURIComponent(categoriaEntrada)}&descricao=${encodeURIComponent(descricaoEntrada)}`);
+
+  await sock.sendMessage(msg.key.remoteJid, { 
+    text: `✅ Entrada registrada!\n\n` +
+          `💵 Valor: R$ ${valorEntrada}\n` +
+          `🏷️ Categoria: ${categoriaEntrada}\n` +
+          `📝 Descrição: ${descricaoEntrada || "Sem detalhes"}\n` +
+          `👤 Registrado por: ${remetenteNome}`
+  });
+  break;
+}
+
+          case 'saída': {
+  console.log("Processando comando 'saída'...");
+  const valorSaida = parametros.valor;
+  let categoriaSaida = parametros.categoria || "Outros";
+  const remetente = msg.pushName || "Sistema";
+  const textoOriginal = msg.message.conversation.trim();
+
+  try {
+    // Verifica e cria categoria se necessário
+    const responseCategoria = await axios.get(
+      `${WEB_APP_URL}?action=verificarCriarCategoria&categoria=${encodeURIComponent(categoriaSaida)}`
+    );
+    
+    // Se a categoria foi criada/modificada
+    categoriaSaida = responseCategoria.data.categoria || categoriaSaida;
+
+    const responseSaida = await axios.get(
   `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetente}&texto=${encodeURIComponent(textoOriginal)}`
 );
-      
-      await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
-    } catch (error) {
-      console.error("Erro:", error);
-      await sock.sendMessage(msg.key.remoteJid, { 
-        text: `❌ Erro: ${error.response?.data || error.message}`
-      });
-    }
-    break;
-  }
-
-            case 'média':
-              console.log("Processando comando 'média'...");
-              const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
-              await sock.sendMessage(msg.key.remoteJid, { text: media.data });
-              break;
-
-            case 'grafico':
-              console.log("Processando comando 'grafico'...");
-              const tipoGrafico = 'bar'; // Força o tipo de gráfico para 'bar'
-              const tipoDados = parametros.dados || 'ambos';
-              const periodo = parametros.periodo || 'todos';
-
-              // Obtém os dados da API
-              const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`);
-              const dados = response.data;
-
-              // Verifica se os dados estão no formato correto
-              if (!dados.labels || !dados.datasets || !dados.titulo) {
-                console.error("Dados do gráfico inválidos:", dados);
-                await sock.sendMessage(msg.key.remoteJid, { text: "❌ Erro: Dados do gráfico inválidos." });
-                return;
-              }
-
-              // Gera o gráfico
-              try {
-                const image = await gerarGrafico(tipoGrafico, dados);
-                await sock.sendMessage(msg.key.remoteJid, { image: image, caption: `📊 ${dados.titulo}` });
-              } catch (error) {
-                console.error("Erro ao gerar o gráfico:", error);
-                await sock.sendMessage(msg.key.remoteJid, { text: `❌ Erro ao gerar o gráfico: ${error.message}` });
-              }
-              break;
-
-            case 'categoria adicionar':
-              console.log("Processando comando 'categoria adicionar'...");
-              const nomeCategoria = parametros.nome;
-              await axios.get(`${WEB_APP_URL}?action=adicionarCategoria&categoria=${nomeCategoria}`);
-              await sock.sendMessage(msg.key.remoteJid, { text: `📌 Categoria "${nomeCategoria}" adicionada com sucesso.` });
-              break;
-
-            case 'listar categorias':
-              console.log("Processando comando 'listar categorias'...");
-              const responseCategorias = await axios.get(`${WEB_APP_URL}?action=listarCategorias`);
-              const categorias = responseCategorias.data.categorias;
-              if (categorias.length === 0) {
-                await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhuma categoria cadastrada." });
-              } else {
-                const listaCategorias = categorias.map((cat, index) => `${index + 1}. ${cat}`).join('\n');
-                await sock.sendMessage(msg.key.remoteJid, { text: `📌 Categorias cadastradas:\n${listaCategorias}` });
-              }
-              break;
-
-  case 'dívida adicionar': {
-    console.log("Processando comando 'dívida adicionar'...");
-    const valorDivida = parametros.valor;
-    const credor = parametros.credor;
-    const dataVencimento = parametros.dataVencimento;
-    const categoria = parametros.categoria || "Geral"; // Captura a categoria
-
-    await axios.get(`${WEB_APP_URL}?action=adicionarDivida&valor=${valorDivida}&credor=${credor}&dataVencimento=${dataVencimento}&categoria=${encodeURIComponent(categoria)}`);
-
+    
+    await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
+  } catch (error) {
+    console.error("Erro:", error);
     await sock.sendMessage(msg.key.remoteJid, { 
-      text: `✅ Dívida de R$ ${valorDivida} adicionada para ${credor}\n` +
-            `📅 Vencimento: ${dataVencimento}\n` +
-            `🏷️ Categoria: ${categoria}` 
+      text: `❌ Erro: ${error.response?.data || error.message}`
     });
-    break;
   }
+  break;
+}
 
-            case 'lembrete adicionar':
-              console.log("Processando comando 'lembrete adicionar'...");
-              const descricaoLembrete = parametros.descricao;
-              const dataLembrete = parametros.data;
-              await axios.get(`${WEB_APP_URL}?action=adicionarLembrete&descricao=${descricaoLembrete}&data=${dataLembrete}`);
-              await sock.sendMessage(msg.key.remoteJid, { text: `✅ Lembrete "${descricaoLembrete}" adicionado para ${dataLembrete}.` });
-              break;
+        case 'média':
+          console.log("Processando comando 'média'...");
+          const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
+          await sock.sendMessage(msg.key.remoteJid, { text: media.data });
+          break;
 
-            case 'lembrete listar':
-              console.log("Processando comando 'lembrete listar'...");
-              const responseLembretes = await axios.get(`${WEB_APP_URL}?action=listarLembretes`);
-              const lembretes = responseLembretes.data.lembretes;
-              if (lembretes.length === 0) {
-                await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhum lembrete cadastrado." });
-              } else {
-                const listaLembretes = lembretes.map(l => `${l.id}. ${l.descricao} (${l.data})`).join('\n');
-                await sock.sendMessage(msg.key.remoteJid, { text: `📌 Lembretes:\n${listaLembretes}` });
-              }
-              break;
+        case 'grafico':
+          console.log("Processando comando 'grafico'...");
+          const tipoGrafico = 'bar'; // Força o tipo de gráfico para 'bar'
+          const tipoDados = parametros.dados || 'ambos';
+          const periodo = parametros.periodo || 'todos';
 
-            case 'orçamento definir':
-              console.log("Processando comando 'orçamento definir'...");
-              const categoria = parametros.categoria;
-              const valor = parametros.valor;
-              await axios.get(`${WEB_APP_URL}?action=definirOrcamento&categoria=${categoria}&valor=${valor}`);
-              await sock.sendMessage(msg.key.remoteJid, { text: `✅ Orçamento de R$ ${valor} definido para a categoria "${categoria}".` });
-              break;
+          // Obtém os dados da API
+          const response = await axios.get(`${WEB_APP_URL}?action=getDadosGrafico&tipo=${tipoDados}&periodo=${periodo}`);
+          const dados = response.data;
 
-            case 'orçamento listar':
-              console.log("Processando comando 'orçamento listar'...");
-              const responseOrcamentos = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
-              await sock.sendMessage(msg.key.remoteJid, { text: responseOrcamentos.data });
-              break;
+          // Verifica se os dados estão no formato correto
+          if (!dados.labels || !dados.datasets || !dados.titulo) {
+            console.error("Dados do gráfico inválidos:", dados);
+            await sock.sendMessage(msg.key.remoteJid, { text: "❌ Erro: Dados do gráfico inválidos." });
+            return;
+          }
 
-              case 'orçamento excluir': {
-                console.log("Processando comando 'orçamento excluir'...");
-                const numeroOrcamentoExcluir = parametros['número']; // Acessa o parâmetro corretamente
-                const responseExcluirOrcamento = await axios.get(`${WEB_APP_URL}?action=excluirOrcamento&numero=${numeroOrcamentoExcluir}`);
-                await sock.sendMessage(msg.key.remoteJid, { text: responseExcluirOrcamento.data });
-                break;
-              }
+          // Gera o gráfico
+          try {
+            const image = await gerarGrafico(tipoGrafico, dados);
+            await sock.sendMessage(msg.key.remoteJid, { image: image, caption: `📊 ${dados.titulo}` });
+          } catch (error) {
+            console.error("Erro ao gerar o gráfico:", error);
+            await sock.sendMessage(msg.key.remoteJid, { text: `❌ Erro ao gerar o gráfico: ${error.message}` });
+          }
+          break;
 
-  // Adicione este case:
-  // Atualizar o case 'historico'
-  case 'historico': {
-    console.log("Processando comando 'historico'...");
-    try {
-      const { 
-        tipo = "todos",
-        categoria = "",
-        dataInicio = "",
-        dataFim = ""
-      } = parametros || {};
+        case 'categoria adicionar':
+          console.log("Processando comando 'categoria adicionar'...");
+          const nomeCategoria = parametros.nome;
+          await axios.get(`${WEB_APP_URL}?action=adicionarCategoria&categoria=${nomeCategoria}`);
+          await sock.sendMessage(msg.key.remoteJid, { text: `📌 Categoria "${nomeCategoria}" adicionada com sucesso.` });
+          break;
 
-      const response = await axios.get(
-        `${WEB_APP_URL}?action=historico&tipo=${tipo}&categoria=${encodeURIComponent(categoria)}&dataInicio=${dataInicio}&dataFim=${dataFim}`
-      );
+        case 'listar categorias':
+          console.log("Processando comando 'listar categorias'...");
+          const responseCategorias = await axios.get(`${WEB_APP_URL}?action=listarCategorias`);
+          const categorias = responseCategorias.data.categorias;
+          if (categorias.length === 0) {
+            await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhuma categoria cadastrada." });
+          } else {
+            const listaCategorias = categorias.map((cat, index) => `${index + 1}. ${cat}`).join('\n');
+            await sock.sendMessage(msg.key.remoteJid, { text: `📌 Categorias cadastradas:\n${listaCategorias}` });
+          }
+          break;
 
-      console.log("Resposta da API:", response.data);
-      
-      if (!response.data.success || !Array.isArray(response.data.historico)) {
-        throw new Error('Resposta inválida da API');
-      }
+case 'dívida adicionar': {
+  console.log("Processando comando 'dívida adicionar'...");
+  const valorDivida = parametros.valor;
+  const credor = parametros.credor;
+  const dataVencimento = parametros.dataVencimento;
+  const categoria = parametros.categoria || "Geral"; // Captura a categoria
 
-      const historico = response.data.historico;
+  await axios.get(`${WEB_APP_URL}?action=adicionarDivida&valor=${valorDivida}&credor=${credor}&dataVencimento=${dataVencimento}&categoria=${encodeURIComponent(categoria)}`);
 
-      if (historico.length === 0) {
-        await sock.sendMessage(msg.key.remoteJid, { 
-          text: "📭 Nenhuma transação encontrada com esses filtros." 
-        });
-        return;
-      }
+  await sock.sendMessage(msg.key.remoteJid, { 
+    text: `✅ Dívida de R$ ${valorDivida} adicionada para ${credor}\n` +
+          `📅 Vencimento: ${dataVencimento}\n` +
+          `🏷️ Categoria: ${categoria}` 
+  });
+  break;
+}
 
-      let mensagem = "📜 *Histórico de Transações* 📜\n\n";
-      historico.forEach((transacao, index) => {
-        mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data}\n`;
-        mensagem += `⚫ Tipo: ${transacao.tipo}\n`;
-        mensagem += `💵 Valor: R$ ${transacao.valor}\n`;
-        mensagem += `🏷️ Categoria: ${transacao.categoria || "Sem categoria"}\n`;
-        mensagem += `📝 Descrição: ${transacao.descricao || "Sem detalhes"}\n\n`;
-      });
+        case 'lembrete adicionar':
+          console.log("Processando comando 'lembrete adicionar'...");
+          const descricaoLembrete = parametros.descricao;
+          const dataLembrete = parametros.data;
+          await axios.get(`${WEB_APP_URL}?action=adicionarLembrete&descricao=${descricaoLembrete}&data=${dataLembrete}`);
+          await sock.sendMessage(msg.key.remoteJid, { text: `✅ Lembrete "${descricaoLembrete}" adicionado para ${dataLembrete}.` });
+          break;
 
-      mensagem += "\n🔍 Use `excluir [ID]` para remover registros (ex: `excluir 5,7`)";
-      
-      await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
-      
-    } catch (error) {
-      console.error("Erro no histórico:", error);
-      await sock.sendMessage(msg.key.remoteJid, { 
-        text: "❌ Erro ao buscar histórico. Verifique os filtros e tente novamente." 
-      });
+        case 'lembrete listar':
+          console.log("Processando comando 'lembrete listar'...");
+          const responseLembretes = await axios.get(`${WEB_APP_URL}?action=listarLembretes`);
+          const lembretes = responseLembretes.data.lembretes;
+          if (lembretes.length === 0) {
+            await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhum lembrete cadastrado." });
+          } else {
+            const listaLembretes = lembretes.map(l => `${l.id}. ${l.descricao} (${l.data})`).join('\n');
+            await sock.sendMessage(msg.key.remoteJid, { text: `📌 Lembretes:\n${listaLembretes}` });
+          }
+          break;
+
+        case 'orçamento definir':
+          console.log("Processando comando 'orçamento definir'...");
+          const categoria = parametros.categoria;
+          const valor = parametros.valor;
+          await axios.get(`${WEB_APP_URL}?action=definirOrcamento&categoria=${categoria}&valor=${valor}`);
+          await sock.sendMessage(msg.key.remoteJid, { text: `✅ Orçamento de R$ ${valor} definido para a categoria "${categoria}".` });
+          break;
+
+        case 'orçamento listar':
+          console.log("Processando comando 'orçamento listar'...");
+          const responseOrcamentos = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
+          await sock.sendMessage(msg.key.remoteJid, { text: responseOrcamentos.data });
+          break;
+
+          case 'orçamento excluir': {
+            console.log("Processando comando 'orçamento excluir'...");
+            const numeroOrcamentoExcluir = parametros['número']; // Acessa o parâmetro corretamente
+            const responseExcluirOrcamento = await axios.get(`${WEB_APP_URL}?action=excluirOrcamento&numero=${numeroOrcamentoExcluir}`);
+            await sock.sendMessage(msg.key.remoteJid, { text: responseExcluirOrcamento.data });
+            break;
+          }
+
+// Adicione este case:
+// Atualizar o case 'historico'
+case 'historico': {
+  console.log("Processando comando 'historico'...");
+  try {
+    const { 
+      tipo = "todos",
+      categoria = "",
+      dataInicio = "",
+      dataFim = ""
+    } = parametros || {};
+
+    const response = await axios.get(
+      `${WEB_APP_URL}?action=historico&tipo=${tipo}&categoria=${encodeURIComponent(categoria)}&dataInicio=${dataInicio}&dataFim=${dataFim}`
+    );
+
+    console.log("Resposta da API:", response.data);
+    
+    if (!response.data.success || !Array.isArray(response.data.historico)) {
+      throw new Error('Resposta inválida da API');
     }
-    break;
+
+    const historico = response.data.historico;
+
+    if (historico.length === 0) {
+      await sock.sendMessage(msg.key.remoteJid, { 
+        text: "📭 Nenhuma transação encontrada com esses filtros." 
+      });
+      return;
+    }
+
+    let mensagem = "📜 *Histórico de Transações* 📜\n\n";
+    historico.forEach((transacao, index) => {
+      mensagem += `🆔 *${transacao.id}* - 📅 ${transacao.data}\n`;
+      mensagem += `⚫ Tipo: ${transacao.tipo}\n`;
+      mensagem += `💵 Valor: R$ ${transacao.valor}\n`;
+      mensagem += `🏷️ Categoria: ${transacao.categoria || "Sem categoria"}\n`;
+      mensagem += `📝 Descrição: ${transacao.descricao || "Sem detalhes"}\n\n`;
+    });
+
+    mensagem += "\n🔍 Use `excluir [ID]` para remover registros (ex: `excluir 5,7`)";
+    
+    await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+    
+  } catch (error) {
+    console.error("Erro no histórico:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao buscar histórico. Verifique os filtros e tente novamente." 
+    });
   }
+  break;
+}
               
           case 'orçamento': {
-    console.log("Processando comando 'orçamento'...");
-    try {
-      // Corrige o acesso ao parâmetro (com ou sem acento)
-      const numeroOrcamentoConsulta = parseInt(parametros['número'] || parametros.numero);
-      
-      if (isNaN(numeroOrcamentoConsulta)) {
-        await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
-        break;
-      }
-
-      // Obtém a lista de orçamentos formatada corretamente
-      const responseOrcamentosLista = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
-      const orcamentos = responseOrcamentosLista.data
-        .split('\n')
-        .slice(1)
-        .filter(line => line.trim() !== '')
-        .map(line => {
-          const match = line.match(/(\d+)\. (.+?): R\$ (.+)/);
-          return match ? { id: parseInt(match[1]), categoria: match[2], valor: match[3] } : null;
-        })
-        .filter(Boolean);
-
-      // Verifica se o número é válido
-      if (numeroOrcamentoConsulta < 1 || numeroOrcamentoConsulta > orcamentos.length) {
-        await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
-        break;
-      }
-
-      const orcamentoSelecionado = orcamentos[numeroOrcamentoConsulta - 1];
-      
-      // Obtém o resumo do orçamento
-      const responseResumo = await axios.get(
-        `${WEB_APP_URL}?action=resumoOrcamento&categoria=${encodeURIComponent(orcamentoSelecionado.categoria)}`
-      );
-      
-      const dadosResumo = responseResumo.data;
-
-      // Formata a mensagem
-      const mensagemResumo = 
-  `📊 Orçamento de ${dadosResumo.categoria}:
-  💰 Valor Definido: R$ ${orcamentoSelecionado.valor}
-  💰 Total Gasto: R$ ${dadosResumo.totalGasto}
-  📉 Porcentagem Utilizada: ${dadosResumo.porcentagemUtilizada}%
-  📈 Valor Restante: R$ ${dadosResumo.valorRestante}`;
-
-      await sock.sendMessage(msg.key.remoteJid, { text: mensagemResumo });
-    } catch (error) {
-      console.error("Erro ao processar orçamento:", error);
-      await sock.sendMessage(msg.key.remoteJid, { 
-        text: "❌ Erro ao consultar orçamento. Verifique o número e tente novamente." 
-      });
-    }
-    break;
-  }
-
-            case 'excluir':
-              console.log("Processando comando 'excluir'...");
-              const numeros = Object.values(parametros).join(",");
-              const responseExcluir = await axios.get(`${WEB_APP_URL}?action=excluirTransacao&parametro=${encodeURIComponent(numeros)}`);
-              await sock.sendMessage(msg.key.remoteJid, { text: responseExcluir.data });
-              break;
-
-            case 'agendar': {
-              const { servico, data, hora } = parametros;
-              const telefone = remetenteId.replace(/@s\.whatsapp\.net/, ''); // Extrai apenas números
-              const resposta = await axios.get(
-                `${WEB_APP_URL}?action=agendar&servico=${encodeURIComponent(servico)}&data=${data}&hora=${hora}&telefone=${telefone}`
-              );
-              await sock.sendMessage(msg.key.remoteJid, { text: resposta.data });
-              break;
-            }
-
-            case 'meus agendamentos': {
-              const response = await axios.get(`${WEB_APP_URL}?action=meusAgendamentos&telefone=${telefone}`);
-              const agendamentos = response.data;
-              // Formatar e enviar lista
-              let mensagem = "📅 *Meus Agendamentos*:\n\n";
-              agendamentos.forEach(agendamento => {
-                mensagem += `🔹 ${agendamento.servico} - ${agendamento.data} às ${agendamento.hora}\n`;
-              });
-              await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
-              break;
-            }
-
-            case 'cancelar agendamento': {
-              const { id } = parametros;
-              const respostaCancelamento = await axios.get(`${WEB_APP_URL}?action=cancelarAgendamento&id=${id}`);
-              await sock.sendMessage(msg.key.remoteJid, { text: `✅ Agendamento ${id} cancelado com sucesso.` });
-              break;
-            }
-
-              default:
-                    await sock.sendMessage(msg.key.remoteJid, { 
-                      text: "❌ Comando não reconhecido. Use 'ajuda'." 
-                    });
-                }
-              }
-            } else {
-              const respostaConversacao = await gerarRespostaConversacao(texto);
-              await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
-            }
-          } catch (error) {
-            console.error("Erro no processamento:", error);
-            await sock.sendMessage(msg.key.remoteJid, { 
-              text: "❌ Ocorreu um erro interno. Tente novamente." 
-            });
-          }
-        } catch (error) {
-          console.error("Erro crítico:", error);
-        }
-      });
+  console.log("Processando comando 'orçamento'...");
+  try {
+    // Corrige o acesso ao parâmetro (com ou sem acento)
+    const numeroOrcamentoConsulta = parseInt(parametros['número'] || parametros.numero);
+    
+    if (isNaN(numeroOrcamentoConsulta)) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      break;
     }
 
-    // Função para formatar serviços
-    function formatarServico(servico) {
-      return `*${servico.nome}*\n` +
-             `💵 Preço: R$ ${servico.preco}\n` +
-             `⏱ Duração: ${servico.duracao} minutos\n` +
-             '────────────────────';
+    // Obtém a lista de orçamentos formatada corretamente
+    const responseOrcamentosLista = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
+    const orcamentos = responseOrcamentosLista.data
+      .split('\n')
+      .slice(1)
+      .filter(line => line.trim() !== '')
+      .map(line => {
+        const match = line.match(/(\d+)\. (.+?): R\$ (.+)/);
+        return match ? { id: parseInt(match[1]), categoria: match[2], valor: match[3] } : null;
+      })
+      .filter(Boolean);
+
+    // Verifica se o número é válido
+    if (numeroOrcamentoConsulta < 1 || numeroOrcamentoConsulta > orcamentos.length) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      break;
     }
 
-    iniciarConexaoWhatsApp().then(() => {
-      app.listen(3000, () => console.log("Servidor rodando!"));
+    const orcamentoSelecionado = orcamentos[numeroOrcamentoConsulta - 1];
+    
+    // Obtém o resumo do orçamento
+    const responseResumo = await axios.get(
+      `${WEB_APP_URL}?action=resumoOrcamento&categoria=${encodeURIComponent(orcamentoSelecionado.categoria)}`
+    );
+    
+    const dadosResumo = responseResumo.data;
+
+    // Formata a mensagem
+    const mensagemResumo = 
+`📊 Orçamento de ${dadosResumo.categoria}:
+💰 Valor Definido: R$ ${orcamentoSelecionado.valor}
+💰 Total Gasto: R$ ${dadosResumo.totalGasto}
+📉 Porcentagem Utilizada: ${dadosResumo.porcentagemUtilizada}%
+📈 Valor Restante: R$ ${dadosResumo.valorRestante}`;
+
+    await sock.sendMessage(msg.key.remoteJid, { text: mensagemResumo });
+  } catch (error) {
+    console.error("Erro ao processar orçamento:", error);
+    await sock.sendMessage(msg.key.remoteJid, { 
+      text: "❌ Erro ao consultar orçamento. Verifique o número e tente novamente." 
     });
+  }
+  break;
+}
+
+        case 'excluir':
+          console.log("Processando comando 'excluir'...");
+          const numeros = Object.values(parametros).join(",");
+          const responseExcluir = await axios.get(`${WEB_APP_URL}?action=excluirTransacao&parametro=${encodeURIComponent(numeros)}`);
+          await sock.sendMessage(msg.key.remoteJid, { text: responseExcluir.data });
+          break;
+
+        case 'agendar': {
+          const { cliente, servico, data, hora, telefone } = parametros;
+          const response = await axios.get(`${WEB_APP_URL}?action=agendar&cliente=${cliente}&servico=${servico}&data=${data}&hora=${hora}&telefone=${telefone}`);
+          await sock.sendMessage(msg.key.remoteJid, { text: response.data });
+          break;
+        }
+
+        case 'verificar horarios': {
+          const data = parametros.data;
+          const response = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${data}`);
+          const horarios = response.data.horarios;
+          await sock.sendMessage(msg.key.remoteJid, { 
+            text: `📅 Horários ocupados em ${data}:\n${horarios.join('\n') || 'Todos horários livres!'}` 
+          });
+          break;
+        }
+
+          default:
+                await sock.sendMessage(msg.key.remoteJid, { 
+                  text: "❌ Comando não reconhecido. Use 'ajuda'." 
+                });
+            }
+          }
+        } else {
+          const respostaConversacao = await gerarRespostaConversacao(texto);
+          await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
+        }
+      } catch (error) {
+        console.error("Erro no processamento:", error);
+        await sock.sendMessage(msg.key.remoteJid, { 
+          text: "❌ Ocorreu um erro interno. Tente novamente." 
+        });
+      }
+    } catch (error) {
+      console.error("Erro crítico:", error);
+    }
+  });
+}
+
+iniciarConexaoWhatsApp().then(() => {
+  app.listen(3000, () => console.log("Servidor rodando!"));
+});

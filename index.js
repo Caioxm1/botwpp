@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbynyqJlMh1z3DBqbut4MmrJP_XVlmqKxJYvHO85IxLbp8M7wPpFKPHl0zOuI9EVnGa3Fw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxCvncEt0N6ZQ1ubQCzyYnCeT-ai-a9OHqGdhbmBVNixwzB7ftYOGVLdT4sB2Xp3yf0MQ/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -33,6 +33,50 @@ let ultimoComandoProcessado = null;
 // Depois faça o log das configurações
 console.log("Grupos permitidos:", GRUPOS_PERMITIDOS);
 console.log("Usuários autorizados:", USUARIOS_AUTORIZADOS);
+
+// Configure no início do arquivo
+const fluxoAgendamento = {
+  INICIO: {
+    mensagem: (nome) => `Olá ${nome}! Vamos agendar seu serviço? Qual seu nome completo?`,
+    proximoEstado: 'AGUARDANDO_NOME'
+  },
+  AGUARDANDO_NOME: {
+    acao: async (telefone, resposta) => {
+      // Salva nome na planilha
+      await axios.get(`${WEB_APP_URL}?action=atualizarEtapa&telefone=${telefone}&etapa=AGUARDANDO_SERVICO&nome=${resposta}`);
+      
+      // Busca serviços
+      const servicos = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+      const listaServicos = servicos.data.map(s => `🔹 ${s.nome} - R$ ${s.preco} (${s.duracao}min)`).join('\n');
+      
+      return {
+        mensagem: `🛎️ *Serviços Disponíveis:*\n\n${listaServicos}\n\nDigite os números dos serviços desejados (Ex: 1,3)`,
+        proximoEstado: 'AGUARDANDO_SERVICOS'
+      };
+    }
+  },
+  AGUARDANDO_SERVICOS: {
+    acao: async (telefone, resposta) => {
+      // Valida números
+      const numeros = resposta.split(',').map(n => parseInt(n.trim()));
+      
+      // Obtém detalhes
+      const servicosEscolhidos = await axios.get(`${WEB_APP_URL}?action=obterServicos&ids=${numeros.join(',')}`);
+      
+      // Salva na planilha
+      await axios.get(`${WEB_APP_URL}?action=salvarServicos&telefone=${telefone}&servicos=${JSON.stringify(servicosEscolhidos.data)}`);
+      
+      // Busca disponibilidade
+      const horarios = await axios.get(`${WEB_APP_URL}?action=verificarHorarios`);
+      
+      return {
+        mensagem: `📅 *Horários Disponíveis:*\n\n${horarios.data.join('\n')}\n\nEscolha um horário (Ex: 25/05 15:00)`,
+        proximoEstado: 'AGUARDANDO_HORARIO'
+      };
+    }
+  },
+  // ... Continue o padrão para outras etapas
+};
 
 // Endpoint para enviar mensagens
 app.post('/api/send-message', async (req, res) => {

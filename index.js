@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxeDkO6Qr2bQJ0GYUPu0VHjWhds0Gq10I2EfvvNOz6CqGDrksgtghScYu0VulIPoMC4JQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbynyqJlMh1z3DBqbut4MmrJP_XVlmqKxJYvHO85IxLbp8M7wPpFKPHl0zOuI9EVnGa3Fw/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -69,6 +69,11 @@ const LISTA_DE_COMANDOS = `
 - adicionar pedido [cliente] [produto] [quantidade] [precoUnitario]: Registra um novo pedido para um cliente com detalhes do produto, quantidade e preço.
 - consultar pedidos [cliente] [data]: Consulta todos os pedidos de um cliente (opcional: filtra por data). Sinônimos: "lista de pedidos", "ver pedidos", "pedidos do cliente".
 - listar clientes: Mostra todos os clientes cadastrados no sistema. Sinônimos: "meus clientes", "clientes registrados", "quais são meus clientes".
+
+📅 *Agendamentos*
+- agendar [serviço] [data] [hora]: Agenda um novo serviço
+- meus agendamentos: Lista seus compromissos
+- cancelar agendamento [id]: Cancela um agendamento
 
 📈 *Análise Inteligente*
 - análise: Gera uma análise detalhada dos gastos e insights financeiros.
@@ -1154,7 +1159,7 @@ case 'análise': {
             text: "❌ Erro ao buscar pedidos. Verifique o formato da data (DD/MM/AAAA)." 
           });
         }
-        break; // Fechamento correto do case
+        break;
       }    
         case 'adicionar pedido': {
           console.log("Processando comando 'adicionar pedido'...");
@@ -1467,6 +1472,22 @@ case 'historico': {
           const numeros = Object.values(parametros).join(",");
           const responseExcluir = await axios.get(`${WEB_APP_URL}?action=excluirTransacao&parametro=${encodeURIComponent(numeros)}`);
           await sock.sendMessage(msg.key.remoteJid, { text: responseExcluir.data });
+          break;
+
+        case 'agendar':
+          const respostaAgendamento = await axios.get(`${WEB_APP_URL}?action=agendar&cliente=${encodeURIComponent(nome)}&servico=${servico}&data=${data}&hora=${hora}&telefone=${telefone}`);
+          await enviarMensagem(`📅 Seu agendamento para ${servico} está marcado para ${data} às ${hora}.`);
+          break;
+
+        case 'meus agendamentos':
+          const responseAgendamentos = await axios.get(`${WEB_APP_URL}?action=meusAgendamentos&telefone=${telefone}`);
+          const agendamentos = responseAgendamentos.data;
+          // Formatar e enviar lista
+          let mensagemAgendamentos = "📅 *Meus Agendamentos* 📅\n\n";
+          agendamentos.forEach((agendamento, index) => {
+            mensagemAgendamentos += `🔹 ${index + 1}. ${agendamento.servico} em ${agendamento.data} às ${agendamento.hora}\n`;
+          });
+          await enviarMensagem(mensagemAgendamentos);
           break;
 
           default:

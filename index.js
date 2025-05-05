@@ -7,6 +7,7 @@ const express = require('express');
 const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
 const app = express();
+const timeoutsAgendamento = {};
 app.use(express.json());
 
 
@@ -113,23 +114,38 @@ Você receberá um lembrete 24h antes. Obrigado!`;
 }
 
 async function iniciarAgendamento(clienteId, mensagem) {
+
+  clearTimeout(timeoutsAgendamento[clienteId]); // Reinicia o timeout
+    
+  timeoutsAgendamento[clienteId] = setTimeout(() => {
+      delete estadosAgendamento[clienteId];
+      sock.sendMessage(clienteId, { text: "⏰ Tempo esgotado. Agendamento cancelado." });
+  }, 300000); // 5 minutos de timeout
+
+
   if (!estadosAgendamento[clienteId]) {
       estadosAgendamento[clienteId] = { passo: 1, dados: {} };
       await sock.sendMessage(clienteId, { text: "Olá! Qual seu *nome completo*?" });
       return;
   }
 
+// Adicione esta função para pausar a execução
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
   const estado = estadosAgendamento[clienteId];
   switch (estado.passo) {
-      case 1:
-          if (!mensagem.trim()) {
-              await sock.sendMessage(clienteId, { text: "❌ Nome inválido. Digite seu nome completo:" });
-              return;
-          }
-          estado.dados.nome = mensagem;
-          estado.passo = 2;
-          await enviarListaServicos(clienteId); // Avança para seleção de serviços
-          break;
+    case 1: // Coletar nome
+    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(texto)) { // Valida nomes com 3+ caracteres e espaços
+        await sock.sendMessage(clienteId, { text: "❌ Nome inválido. Digite seu nome completo:" });
+        await delay(2000); // Aguarda 2 segundo antes de permitir nova tentativa
+        return;
+    }
+    estado.dados.nome = texto;
+    estado.passo = 2;
+    await enviarListaServicos(clienteId); // Avança para seleção de serviços
+    break;
 
       case 2: // Seleção de serviços
       try {
@@ -1010,18 +1026,17 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
 
 
-  // Verificar se está em processo de agendamento
-  if (clienteId in estadosAgendamento) {
-    // Processa a mensagem diretamente no contexto do agendamento
-    await iniciarAgendamento(clienteId, texto);
-    return;
-} 
+        // Primeiro, verifica se o usuário está em processo de agendamento
+        if (clienteId in estadosAgendamento) {
+          await iniciarAgendamento(clienteId, texto);
+          return;
+      }
 
-  // Iniciar novo agendamento
-  if (texto.includes("agendar") || texto.includes("marcar")) {
-    await iniciarAgendamento(clienteId, texto);
-    return;
-}
+      // Só inicia novo agendamento se receber "quero agendar"
+      if (texto.includes("quero agendar")) {
+          await iniciarAgendamento(clienteId, texto);
+          return;
+      }
 
 
 

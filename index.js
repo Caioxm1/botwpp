@@ -11,7 +11,7 @@ app.use(express.json());
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwVOiaTETE2uOSYOovL8eT_gd1DzGIZKYquunoU_oJz184mBZP6-UTuIYJ9vvfM3tw2AQ/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyhqyGuuV2URNTaKq8Q7EZ6fCk63aweLZRDdIsUZTZ3qkUfs6NpgML8w2uawOCG8ozZPA/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -65,6 +65,10 @@ const LISTA_DE_COMANDOS = `
 - saída [valor] [categoria]: Registra uma saída de dinheiro em uma categoria específica.
 - poupança [valor]: Adiciona um valor à poupança.
 
+📅 *Agendamentos*
+- agendar [cliente] [serviço] [data] [hora] [telefone]: Agenda um serviço para um cliente.
+- verificar horarios [data]: Mostra os horários ocupados em uma data.
+
 🛒 *Pedidos e Clientes*
 - adicionar pedido [cliente] [produto] [quantidade] [precoUnitario]: Registra um novo pedido para um cliente com detalhes do produto, quantidade e preço.
 - consultar pedidos [cliente] [data]: Consulta todos os pedidos de um cliente (opcional: filtra por data). Sinônimos: "lista de pedidos", "ver pedidos", "pedidos do cliente".
@@ -111,10 +115,6 @@ const LISTA_DE_COMANDOS = `
 - excluir tudo: Exclui todas as transações.
 - excluir dia [data]: Exclui transações de um dia específico.
 - excluir periodo [dataInicio] [dataFim]: Exclui transações de um período específico.
-
-📅 *Agendamentos*
-- agendar [cliente] [serviço] [data] [hora] [telefone]: Agenda um serviço para um cliente.
-- verificar horarios [data]: Mostra os horários ocupados em uma data.
 
 🔧 *Ajuda*
 - ajuda: Mostra esta lista de comandos.
@@ -1552,6 +1552,83 @@ case 'historico': {
     }
   });
 }
+
+// Novo objeto para controlar o estado da conversa
+const estadosAgendamento = {};
+
+// Fluxo de agendamento
+async function iniciarAgendamento(clienteId, mensagem) {
+  if (!estadosAgendamento[clienteId]) {
+    estadosAgendamento[clienteId] = {
+      passo: 1,
+      dados: {}
+    };
+    await sock.sendMessage(clienteId, { text: "Olá! Qual seu nome completo?" });
+    return;
+  }
+
+  const estado = estadosAgendamento[clienteId];
+  
+  switch(estado.passo) {
+    case 1: // Nome do cliente
+      estado.dados.nome = mensagem;
+      estado.passo = 2;
+      await enviarListaServicos(clienteId);
+      break;
+
+    case 2: // Seleção de serviços
+      const servicosSelecionados = await processarServicos(mensagem);
+      if (servicosSelecionados) {
+        estado.dados.servicos = servicosSelecionados;
+        estado.passo = 3;
+        await enviarOpcoesData(clienteId);
+      } else {
+        await sock.sendMessage(clienteId, { text: "Opção inválida. Por favor, digite os números separados por vírgula." });
+      }
+      break;
+
+    case 3: // Seleção de data
+      if (await verificarDisponibilidade(mensagem)) {
+        estado.dados.data = mensagem;
+        estado.passo = 4;
+        await enviarOpcoesHorario(clienteId, mensagem);
+      } else {
+        await sock.sendMessage(clienteId, { text: "Data indisponível. Escolha outra (DD/MM/AAAA):" });
+      }
+      break;
+
+    case 4: // Confirmação final
+      estado.dados.hora = mensagem;
+      await finalizarAgendamento(clienteId);
+      delete estadosAgendamento[clienteId];
+      break;
+  }
+}
+
+// Função auxiliar para listar serviços
+async function enviarListaServicos(clienteId) {
+  const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+  const servicos = response.data.servicos;
+
+  let lista = "Escolha os serviços (digite os números separados por vírgula):\n";
+  servicos.forEach((serv, index) => {
+    lista += `${index + 1}. ${serv.nome} - R$ ${serv.preco} (${serv.duracao}min)\n`;
+  });
+
+  await sock.sendMessage(clienteId, { text: lista });
+}
+
+// Adicione no handler de mensagens
+sock.ev.on('messages.upsert', async ({ messages }) => {
+  const msg = messages[0];
+  const texto = msg.message.conversation.toLowerCase();
+  const clienteId = msg.key.remoteJid;
+
+  if (texto.includes("agendar") || texto.includes("agendamento")) {
+    await iniciarAgendamento(clienteId, texto);
+  }
+  // ... resto do código existente ...
+});
 
 iniciarConexaoWhatsApp().then(() => {
   app.listen(3000, () => console.log("Servidor rodando!"));

@@ -16,6 +16,7 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
 const app = express();
 const timeoutsAgendamento = {};
+const estadosAgendamento = {};
 async function iniciarAgendamento(clienteId, mensagem) {
 
   clearTimeout(timeoutsAgendamento[clienteId]); // Reinicia o timeout
@@ -37,9 +38,6 @@ const CHAVE_API = process.env.CHAVE_API;
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw4AiqDAtYMl-AaJBlGn1UbYH_WsLbsN7i60k0bPrrySqbmkwW32ZUaHmBSiXRY2984dQ/exec';
 
 
-
-
-const estadosAgendamento = {};
 
 // Funções de Agendamento (NOVO)
 async function enviarListaServicos(clienteId) {

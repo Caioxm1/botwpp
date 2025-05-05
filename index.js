@@ -9,9 +9,10 @@ const WebSocket = require('ws');
 const app = express();
 app.use(express.json());
 
+
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const CHAVE_API = process.env.CHAVE_API;
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyhqyGuuV2URNTaKq8Q7EZ6fCk63aweLZRDdIsUZTZ3qkUfs6NpgML8w2uawOCG8ozZPA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw4AiqDAtYMl-AaJBlGn1UbYH_WsLbsN7i60k0bPrrySqbmkwW32ZUaHmBSiXRY2984dQ/exec';
 const GRUPOS_PERMITIDOS = [
   '120363403512588677@g.us', // Grupo original
   '120363415954951531@g.us' // Novo grupo
@@ -20,6 +21,150 @@ const USUARIOS_AUTORIZADOS = [
   '5521975874116@s.whatsapp.net', // N1
   '5521976919619@s.whatsapp.net' // N2
 ];
+
+
+
+const estadosAgendamento = {};
+
+// Funções de Agendamento (NOVO)
+async function enviarListaServicos(clienteId) {
+  try {
+    const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+    const servicos = response.data.servicos;
+
+    let lista = "📋 *Serviços Disponíveis* 📋\n\n";
+    servicos.forEach((serv, index) => {
+      lista += `${index + 1}. ${serv.nome} - R$ ${serv.preco} (${serv.duracao}min)\n`;
+    });
+    lista += "\nDigite os números dos serviços separados por vírgula:";
+
+    await sock.sendMessage(clienteId, { text: lista });
+  } catch (error) {
+    console.error("Erro ao listar serviços:", error);
+    await sock.sendMessage(clienteId, { text: "❌ Erro ao carregar serviços. Tente novamente." });
+  }
+}
+
+async function processarServicosSelecao(mensagem) {
+  try {
+    const numeros = mensagem.split(',').map(n => parseInt(n.trim()));
+    if (numeros.some(isNaN)) return null;
+
+    const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+    const servicosValidos = response.data.servicos.map((_, i) => i + 1);
+    
+    return numeros.filter(n => servicosValidos.includes(n));
+  } catch (error) {
+    return null;
+  }
+}
+
+async function verificarDisponibilidadeData(data) {
+  try {
+    const response = await axios.get(`${WEB_APP_URL}?action=verificarDisponibilidade&data=${data}`);
+    return response.data.horariosOcupados.length < 10; // Máximo 10 agendamentos/dia
+  } catch (error) {
+    return false;
+  }
+}
+
+async function finalizarAgendamento(clienteId) {
+  try {
+    const estado = estadosAgendamento[clienteId];
+    
+    // Registrar na planilha
+    await axios.get(`${WEB_APP_URL}?action=registrarAgendamento`, {
+      params: {
+        nome: estado.dados.nome,
+        servicos: estado.dados.servicos.join(','),
+        data: estado.dados.data,
+        hora: estado.dados.hora,
+        telefone: estado.dados.telefone.replace('@s.whatsapp.net', '')
+      }
+    });
+
+    // Mensagem de confirmação
+    const mensagem = `✅ *Agendamento Confirmado!*\n
+🗓️ Data: ${estado.dados.data}
+⏰ Hora: ${estado.dados.hora}
+📋 Serviços: ${estado.dados.servicos.map(s => `\n   - ${s}`).join('')}
+    
+Você receberá um lembrete 24h antes. Obrigado!`;
+
+    await sock.sendMessage(clienteId, { text: mensagem });
+    
+  } catch (error) {
+    console.error("Erro finalização:", error);
+    await sock.sendMessage(clienteId, { text: "❌ Erro ao finalizar agendamento. Tente novamente." });
+  } finally {
+    delete estadosAgendamento[clienteId];
+  }
+}
+
+async function iniciarAgendamento(clienteId, mensagem) {
+  if (!estadosAgendamento[clienteId]) {
+    estadosAgendamento[clienteId] = { passo: 1, dados: {} };
+    await sock.sendMessage(clienteId, { text: "Olá! Qual seu *nome completo*?" });
+    return;
+  }
+
+  const estado = estadosAgendamento[clienteId];
+  
+  switch(estado.passo) {
+    case 1:
+      estado.dados.nome = mensagem;
+      estado.passo = 2;
+      await enviarListaServicos(clienteId);
+      break;
+
+    case 2:
+      const servicosIds = await processarServicosSelecao(mensagem);
+      if (servicosIds?.length > 0) {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+        estado.dados.servicos = servicosIds.map(id => response.data.servicos[id - 1].nome);
+        estado.passo = 3;
+        await sock.sendMessage(clienteId, { 
+          text: `Você selecionou:\n${estado.dados.servicos.map(s => `- ${s}`).join('\n')}\n\nDigite uma data (DD/MM/AAAA):` 
+        });
+      } else {
+        await sock.sendMessage(clienteId, { text: "❌ Seleção inválida. Digite números separados por vírgula:" });
+      }
+      break;
+
+    case 3:
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(mensagem)) {
+        const disponivel = await verificarDisponibilidadeData(mensagem);
+        if (disponivel) {
+          estado.dados.data = mensagem;
+          estado.passo = 4;
+          const response = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${mensagem}`);
+          const horarios = response.data.horarios;
+          
+          await sock.sendMessage(clienteId, { 
+            text: `Horários disponíveis para ${mensagem}:\n${horarios.join('\n') || 'Todos horários livres'}\n\nDigite o horário desejado (HH:MM):`
+          });
+        } else {
+          await sock.sendMessage(clienteId, { text: "❌ Data lotada. Escolha outra (DD/MM/AAAA):" });
+        }
+      } else {
+        await sock.sendMessage(clienteId, { text: "❌ Formato inválido. Use DD/MM/AAAA:" });
+      }
+      break;
+
+    case 4:
+      if (/^\d{2}:\d{2}$/.test(mensagem)) {
+        estado.dados.hora = mensagem;
+        estado.dados.telefone = clienteId;
+        await finalizarAgendamento(clienteId);
+      } else {
+        await sock.sendMessage(clienteId, { text: "❌ Formato inválido. Use HH:MM:" });
+      }
+      break;
+  }
+}
+
+
+
 const chartJSNodeCanvas = new ChartJSNodeCanvas({
   width: 800,
   height: 600,
@@ -842,6 +987,27 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   const remetente = msg?.pushName || "Usuário";
   const texto = msg.message.conversation.trim().toLowerCase();
 
+
+  const clienteId = msg.key.remoteJid;
+
+
+
+  // Verificar se está em processo de agendamento
+  if (estadosAgendamento[clienteId]) {
+    await iniciarAgendamento(clienteId, texto);
+    return;
+  }
+
+  // Iniciar novo agendamento
+  if (texto.includes("agendar") || texto.includes("marcar")) {
+    await iniciarAgendamento(clienteId, texto);
+    return;
+  }
+
+
+
+
+
   // Log para depuração
   console.log(`=== Nova mensagem ===`);
   console.log(`De: ${msg.key.participant || msg.key.remoteJid}`);
@@ -1547,88 +1713,11 @@ case 'historico': {
           text: "❌ Ocorreu um erro interno. Tente novamente." 
         });
       }
-    } catch (error) {
-      console.error("Erro crítico:", error);
-    }
-  });
-}
-
-// Novo objeto para controlar o estado da conversa
-const estadosAgendamento = {};
-
-// Fluxo de agendamento
-async function iniciarAgendamento(clienteId, mensagem) {
-  if (!estadosAgendamento[clienteId]) {
-    estadosAgendamento[clienteId] = {
-      passo: 1,
-      dados: {}
-    };
-    await sock.sendMessage(clienteId, { text: "Olá! Qual seu nome completo?" });
-    return;
+  } catch (error) {
+    console.error("Erro geral:", error);
   }
-
-  const estado = estadosAgendamento[clienteId];
-  
-  switch(estado.passo) {
-    case 1: // Nome do cliente
-      estado.dados.nome = mensagem;
-      estado.passo = 2;
-      await enviarListaServicos(clienteId);
-      break;
-
-    case 2: // Seleção de serviços
-      const servicosSelecionados = await processarServicos(mensagem);
-      if (servicosSelecionados) {
-        estado.dados.servicos = servicosSelecionados;
-        estado.passo = 3;
-        await enviarOpcoesData(clienteId);
-      } else {
-        await sock.sendMessage(clienteId, { text: "Opção inválida. Por favor, digite os números separados por vírgula." });
-      }
-      break;
-
-    case 3: // Seleção de data
-      if (await verificarDisponibilidade(mensagem)) {
-        estado.dados.data = mensagem;
-        estado.passo = 4;
-        await enviarOpcoesHorario(clienteId, mensagem);
-      } else {
-        await sock.sendMessage(clienteId, { text: "Data indisponível. Escolha outra (DD/MM/AAAA):" });
-      }
-      break;
-
-    case 4: // Confirmação final
-      estado.dados.hora = mensagem;
-      await finalizarAgendamento(clienteId);
-      delete estadosAgendamento[clienteId];
-      break;
-  }
-}
-
-// Função auxiliar para listar serviços
-async function enviarListaServicos(clienteId) {
-  const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
-  const servicos = response.data.servicos;
-
-  let lista = "Escolha os serviços (digite os números separados por vírgula):\n";
-  servicos.forEach((serv, index) => {
-    lista += `${index + 1}. ${serv.nome} - R$ ${serv.preco} (${serv.duracao}min)\n`;
-  });
-
-  await sock.sendMessage(clienteId, { text: lista });
-}
-
-// Adicione no handler de mensagens
-sock.ev.on('messages.upsert', async ({ messages }) => {
-  const msg = messages[0];
-  const texto = msg.message.conversation.toLowerCase();
-  const clienteId = msg.key.remoteJid;
-
-  if (texto.includes("agendar") || texto.includes("agendamento")) {
-    await iniciarAgendamento(clienteId, texto);
-  }
-  // ... resto do código existente ...
 });
+}
 
 iniciarConexaoWhatsApp().then(() => {
   app.listen(3000, () => console.log("Servidor rodando!"));

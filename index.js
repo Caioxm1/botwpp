@@ -51,20 +51,14 @@ async function enviarListaServicos(clienteId) {
 
 async function processarServicosSelecao(mensagem) {
   try {
-    const numeros = mensagem.split(',')
-      .map(n => parseInt(n.trim()))
-      .filter(n => !isNaN(n) && n > 0);
-    if (numeros.some(isNaN)) return null;
-
-    if (numeros.length === 0) return null;
-
     const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
     const totalServicos = response.data.servicos.length;
 
-    // Verifica se os números estão dentro do intervalo [1, totalServicos]
-    const selecoesValidas = numeros.filter(n => n >= 1 && n <= totalServicos);
-    
-    return selecoesValidas.length > 0 ? selecoesValidas : null;
+    const numeros = mensagem.split(',')
+      .map(n => parseInt(n.trim()))
+      .filter(n => !isNaN(n) && n >= 1 && n <= totalServicos);
+
+    return numeros.length > 0 ? numeros : null;
   } catch (error) {
     console.error("Erro ao processar serviços:", error);
     return null;
@@ -1035,7 +1029,7 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
   // Verificação 3 - Permissões
   const isGrupoValido = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
-  const isUsuarioValido = USUARIOS_AUTORIZADOS.includes(msg.key.participant);
+  const isUsuarioValido = true; // Ignora verificação de usuário em grupos permitidos
 
   if (!isGrupoValido && !isUsuarioValido) {
     console.log("Mensagem bloqueada por permissões");

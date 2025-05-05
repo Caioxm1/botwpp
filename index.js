@@ -137,12 +137,12 @@ function delay(ms) {
   const estado = estadosAgendamento[clienteId];
   switch (estado.passo) {
     case 1: // Coletar nome
-    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(texto)) { // Valida nomes com 3+ caracteres e espaços
+    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) { // Valida nomes com 3+ caracteres e espaços
         await sock.sendMessage(clienteId, { text: "❌ Nome inválido. Digite seu nome completo:" });
         await delay(2000); // Aguarda 2 segundo antes de permitir nova tentativa
         return;
     }
-    estado.dados.nome = texto;
+    estado.dados.nome = mensagem;
     estado.passo = 2;
     await enviarListaServicos(clienteId); // Avança para seleção de serviços
     break;

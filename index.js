@@ -114,31 +114,22 @@ Você receberá um lembrete 24h antes. Obrigado!`;
 
 async function iniciarAgendamento(clienteId, mensagem) {
   if (!estadosAgendamento[clienteId]) {
-      estadosAgendamento[clienteId] = {
-          passo: 1,
-          dados: {},
-          tentativasServico: 0
-      };
-      await sock.sendMessage(clienteId, { 
-          text: "Olá! Qual seu *nome completo*?" 
-      });
+      estadosAgendamento[clienteId] = { passo: 1, dados: {} };
+      await sock.sendMessage(clienteId, { text: "Olá! Qual seu *nome completo*?" });
       return;
   }
 
   const estado = estadosAgendamento[clienteId];
-  
-  switch(estado.passo) {
-    case 1: // Coletar nome
-    if (!mensagem.trim()) {
-        await sock.sendMessage(clienteId, { 
-            text: "❌ Nome inválido. Digite seu nome completo:" 
-        });
-        return;
-    }
-    estado.dados.nome = mensagem;
-    estado.passo = 2;
-    await enviarListaServicos(clienteId); // Avança para seleção de serviços
-    break;
+  switch (estado.passo) {
+      case 1:
+          if (!mensagem.trim()) {
+              await sock.sendMessage(clienteId, { text: "❌ Nome inválido. Digite seu nome completo:" });
+              return;
+          }
+          estado.dados.nome = mensagem;
+          estado.passo = 2;
+          await enviarListaServicos(clienteId); // Avança para seleção de serviços
+          break;
 
       case 2: // Seleção de serviços
       try {
@@ -1020,16 +1011,17 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
 
   // Verificar se está em processo de agendamento
-  if (estadosAgendamento[clienteId]) {
+  if (clienteId in estadosAgendamento) {
+    // Processa a mensagem diretamente no contexto do agendamento
     await iniciarAgendamento(clienteId, texto);
     return;
-  }
+} 
 
   // Iniciar novo agendamento
   if (texto.includes("agendar") || texto.includes("marcar")) {
     await iniciarAgendamento(clienteId, texto);
     return;
-  }
+}
 
 
 

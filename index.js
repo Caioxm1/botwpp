@@ -17,6 +17,12 @@ const WebSocket = require('ws');
 const app = express();
 const timeoutsAgendamento = {};
 const estadosAgendamento = {};
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
 async function iniciarAgendamento(clienteId, mensagem) {
 
   clearTimeout(timeoutsAgendamento[clienteId]); // Reinicia o timeout
@@ -27,10 +33,6 @@ async function iniciarAgendamento(clienteId, mensagem) {
   }, 300000); // 5 minutos de timeout
 
 app.use(express.json());
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -142,11 +144,11 @@ function delay(ms) {
   const estado = estadosAgendamento[clienteId];
   switch (estado.passo) {
     case 1: // Coletar nome
-    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) {
+    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) { // Valida nomes com 3+ caracteres e espaços
         await sock.sendMessage(clienteId, { 
             text: "❌ Nome inválido. Digite seu nome completo (ex: João Silva):" 
         });
-        await delay(2000); // Aguarda 2 segundo antes de permitir nova tentativa
+        await delay(1500); // Aguarda 1,5 segundo antes de permitir nova tentativa
         return;
     }
     estado.dados.nome = mensagem;

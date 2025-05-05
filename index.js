@@ -8,7 +8,20 @@ const { ChartJSNodeCanvas } = require('chartjs-node-canvas');
 const WebSocket = require('ws');
 const app = express();
 const timeoutsAgendamento = {};
+async function iniciarAgendamento(clienteId, mensagem) {
+
+  clearTimeout(timeoutsAgendamento[clienteId]); // Reinicia o timeout
+    
+  timeoutsAgendamento[clienteId] = setTimeout(() => {
+      delete estadosAgendamento[clienteId];
+      sock.sendMessage(clienteId, { text: "⏰ Tempo esgotado. Agendamento cancelado." });
+  }, 300000); // 5 minutos de timeout
+
 app.use(express.json());
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
@@ -113,14 +126,7 @@ Você receberá um lembrete 24h antes. Obrigado!`;
   }
 }
 
-async function iniciarAgendamento(clienteId, mensagem) {
 
-  clearTimeout(timeoutsAgendamento[clienteId]); // Reinicia o timeout
-    
-  timeoutsAgendamento[clienteId] = setTimeout(() => {
-      delete estadosAgendamento[clienteId];
-      sock.sendMessage(clienteId, { text: "⏰ Tempo esgotado. Agendamento cancelado." });
-  }, 300000); // 5 minutos de timeout
 
 
   if (!estadosAgendamento[clienteId]) {
@@ -137,8 +143,10 @@ function delay(ms) {
   const estado = estadosAgendamento[clienteId];
   switch (estado.passo) {
     case 1: // Coletar nome
-    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) { // Valida nomes com 3+ caracteres e espaços
-        await sock.sendMessage(clienteId, { text: "❌ Nome inválido. Digite seu nome completo:" });
+    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) {
+        await sock.sendMessage(clienteId, { 
+            text: "❌ Nome inválido. Digite seu nome completo (ex: João Silva):" 
+        });
         await delay(2000); // Aguarda 2 segundo antes de permitir nova tentativa
         return;
     }
@@ -1016,14 +1024,9 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
     try {
       const msg = messages[0];
       if (!msg?.message || !msg.key?.remoteJid) return;
-    
-
-  const remetente = msg?.pushName || "Usuário";
-  const texto = msg.message.conversation.trim().toLowerCase();
-
-
-  const clienteId = msg.key.remoteJid;
-
+      
+      const clienteId = msg.key.remoteJid;
+      const texto = msg.message.conversation.trim().toLowerCase();
 
 
         // Primeiro, verifica se o usuário está em processo de agendamento
@@ -1037,9 +1040,6 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
           await iniciarAgendamento(clienteId, texto);
           return;
       }
-
-
-
 
 
   // Log para depuração

@@ -114,19 +114,31 @@ Você receberá um lembrete 24h antes. Obrigado!`;
 
 async function iniciarAgendamento(clienteId, mensagem) {
   if (!estadosAgendamento[clienteId]) {
-    estadosAgendamento[clienteId] = { passo: 1, dados: {} };
-    await sock.sendMessage(clienteId, { text: "Olá! Qual seu *nome completo*?" });
-    return;
+      estadosAgendamento[clienteId] = {
+          passo: 1,
+          dados: {},
+          tentativasServico: 0
+      };
+      await sock.sendMessage(clienteId, { 
+          text: "Olá! Qual seu *nome completo*?" 
+      });
+      return;
   }
 
   const estado = estadosAgendamento[clienteId];
   
   switch(estado.passo) {
-    case 1:
-      estado.dados.nome = mensagem;
-      estado.passo = 2;
-      await enviarListaServicos(clienteId);
-      break;
+    case 1: // Coletar nome
+    if (!mensagem.trim()) {
+        await sock.sendMessage(clienteId, { 
+            text: "❌ Nome inválido. Digite seu nome completo:" 
+        });
+        return;
+    }
+    estado.dados.nome = mensagem;
+    estado.passo = 2;
+    await enviarListaServicos(clienteId); // Avança para seleção de serviços
+    break;
 
       case 2: // Seleção de serviços
       try {

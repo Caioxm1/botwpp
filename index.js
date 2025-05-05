@@ -30,6 +30,7 @@ const estadosAgendamento = {};
 async function enviarListaServicos(clienteId) {
   try {
     const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+    if (!response.data?.servicos) throw new Error("Lista de serviços vazia");
     const servicos = response.data.servicos;
 
     let lista = "📋 *Serviços Disponíveis* 📋\n\n";
@@ -41,20 +42,31 @@ async function enviarListaServicos(clienteId) {
     await sock.sendMessage(clienteId, { text: lista });
   } catch (error) {
     console.error("Erro ao listar serviços:", error);
-    await sock.sendMessage(clienteId, { text: "❌ Erro ao carregar serviços. Tente novamente." });
+    await sock.sendMessage(clienteId, { 
+      text: "❌ Erro ao carregar serviços. Tente novamente mais tarde." 
+    });
+    delete estadosAgendamento[clienteId]; // Reseta o estado
   }
 }
 
 async function processarServicosSelecao(mensagem) {
   try {
-    const numeros = mensagem.split(',').map(n => parseInt(n.trim()));
+    const numeros = mensagem.split(',')
+      .map(n => parseInt(n.trim()))
+      .filter(n => !isNaN(n) && n > 0);
     if (numeros.some(isNaN)) return null;
 
+    if (numeros.length === 0) return null;
+
     const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
-    const servicosValidos = response.data.servicos.map((_, i) => i + 1);
+    const totalServicos = response.data.servicos.length;
+
+    // Verifica se os números estão dentro do intervalo [1, totalServicos]
+    const selecoesValidas = numeros.filter(n => n >= 1 && n <= totalServicos);
     
-    return numeros.filter(n => servicosValidos.includes(n));
+    return selecoesValidas.length > 0 ? selecoesValidas : null;
   } catch (error) {
+    console.error("Erro ao processar serviços:", error);
     return null;
   }
 }
@@ -117,19 +129,26 @@ async function iniciarAgendamento(clienteId, mensagem) {
       await enviarListaServicos(clienteId);
       break;
 
-    case 2:
-      const servicosIds = await processarServicosSelecao(mensagem);
-      if (servicosIds?.length > 0) {
-        const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
-        estado.dados.servicos = servicosIds.map(id => response.data.servicos[id - 1].nome);
-        estado.passo = 3;
-        await sock.sendMessage(clienteId, { 
-          text: `Você selecionou:\n${estado.dados.servicos.map(s => `- ${s}`).join('\n')}\n\nDigite uma data (DD/MM/AAAA):` 
-        });
-      } else {
-        await sock.sendMessage(clienteId, { text: "❌ Seleção inválida. Digite números separados por vírgula:" });
-      }
-      break;
+      case 2:
+        const servicosIds = await processarServicosSelecao(mensagem);
+        if (servicosIds?.length > 0) {
+          const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+          estado.dados.servicos = servicosIds.map(id => response.data.servicos[id - 1].nome);
+          estado.passo = 3;
+          await sock.sendMessage(clienteId, { 
+            text: `Você selecionou:\n${estado.dados.servicos.map(s => `- ${s}`).join('\n')}\n\nDigite uma data (DD/MM/AAAA):` 
+          });
+        } else {
+          // Limitar tentativas para evitar loop infinito
+          if (estado.tentativasServico >= 3) {
+            delete estadosAgendamento[clienteId];
+            await sock.sendMessage(clienteId, { text: "❌ Número máximo de tentativas excedido. Agendamento cancelado." });
+          } else {
+            estado.tentativasServico = (estado.tentativasServico || 0) + 1;
+            await sock.sendMessage(clienteId, { text: "❌ Seleção inválida. Digite números válidos separados por vírgula:" });
+          }
+        }
+        break;
 
     case 3:
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(mensagem)) {

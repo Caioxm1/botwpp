@@ -1044,7 +1044,11 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
       const isGrupoAutorizado = GRUPOS_PERMITIDOS.includes(jid);
       const isUsuarioAutorizado = USUARIOS_AUTORIZADOS.includes(jid);
       return !(isGrupoAutorizado || isUsuarioAutorizado);
-    }
+    },
+    markOnlineOnConnect: true,
+    getMessage: async key => ({
+        conversation: "Mensagem temporariamente indisponível"
+    })
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -1098,16 +1102,23 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
      
      if (!isAdmin) {
        console.log(`Bot não é admin no grupo ${clienteId}`);
-       return;
-     }
-     
-     // Rate limit para grupos
-     await delay(2000);
-   } catch (error) {
-     console.error("Erro ao verificar admin:", error);
-     return;
-   }
- }
+            
+            // Envia alerta para o usuário
+            const mensagemAdmin = `⚠️ *Sou necessário como admin neste grupo!*
+            
+1. Vá nas configurações do grupo
+2. Toque em "Participantes"
+3. Selecione meu número (@${sock.user.id.split(':')[0]})
+4. Escolha "Tornar administrador"`;
+
+            await sock.sendMessage(clienteId, { text: mensagemAdmin });
+            return;
+        }
+    } catch (error) {
+        console.error("Erro ao verificar admin:", error);
+        return;
+    }
+}
 
  // 4. Verificar permissões do usuário
 remetenteId = msg.key.participant || clienteId;

@@ -30,7 +30,7 @@ async function iniciarAgendamento(clienteId, mensagem) {
   timeoutsAgendamento[clienteId] = setTimeout(() => {
       delete estadosAgendamento[clienteId];
       sock.sendMessage(clienteId, { text: "⏰ Tempo esgotado. Agendamento cancelado." });
-  }, 300000); // 5 minutos de timeout
+  }, 600000); // 5 minutos de timeout
 
 app.use(express.json());
 
@@ -1023,6 +1023,18 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     try {
+      if (msg.key.remoteJid.endsWith('@g.us')) {
+        const metadata = await sock.groupMetadata(msg.key.remoteJid);
+        const isAdmin = metadata.participants.find(p => p.id === sock.user.id)?.admin;
+        
+        if (!isAdmin) {
+          return console.log("Bot não é admin no grupo");
+        }
+        
+        // Limitar para 1 mensagem a cada 3 segundos por grupo
+        await delay(3000); 
+      }
+
       const msg = messages[0];
       if (!msg?.message || !msg.key?.remoteJid) return;
       
@@ -1051,8 +1063,8 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
   // Verificação 3 - Permissões
   const isGrupoValido = GRUPOS_PERMITIDOS.includes(msg.key.remoteJid);
-  const isUsuarioValido = true; // Ignora verificação de usuário em grupos permitidos
-
+  const isUsuarioValido = USUARIOS_AUTORIZADOS.includes(msg.key.participant || msg.key.remoteJid);
+  
   if (!isGrupoValido && !isUsuarioValido) {
     console.log("Mensagem bloqueada por permissões");
     return;
@@ -1141,7 +1153,7 @@ if (texto.toLowerCase() === "!id") {
 
     // --- VERIFICAÇÃO DO COMANDO "AJUDA" ---
   if (texto.toLowerCase() === "ajuda") {
-    await sock.sendMessage(msg.key.remoteJid, { text: LISTA_DE_COMANDOS });
+    adicionarNaFila(msg.key.remoteJid, { text: LISTA_DE_COMANDOS });
     return; // Encerra o processamento aqui
   }
 
@@ -1206,7 +1218,7 @@ case 'dívida pagar': {
 case 'dívida excluir': {
   const numero = parametros.numero;
   const response = await axios.get(`${WEB_APP_URL}?action=excluirDivida&id=${numero}`);
-  await sock.sendMessage(msg.key.remoteJid, { text: response.data });
+  adicionarNaFila(msg.key.remoteJid, { text: response.data });
   break;
 }
 
@@ -1226,7 +1238,7 @@ case 'dívida detalhes': {
 ⚫ Pagamento: ${detalhes.pagamento}
 ⚫ Alertas: ${detalhes.diasAlerta} dias antes`;
 
-  await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+adicionarNaFila(msg.key.remoteJid, { text: mensagem });
   break;
 }
 
@@ -1272,7 +1284,7 @@ case 'dívida listar': {
    ⚠️ Status: ${statusMsg}\n\n`;
     });
 
-    await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+    adicionarNaFila(msg.key.remoteJid, { text: mensagem });
     
   } catch (error) {
     console.error("Erro detalhado:", error);
@@ -1286,7 +1298,7 @@ case 'dívida listar': {
 case 'dívida alerta': {
   const dias = parametros.dias;
   const response = await axios.get(`${WEB_APP_URL}?action=configurarAlerta&dias=${dias}`);
-  await sock.sendMessage(msg.key.remoteJid, { text: response.data });
+  adicionarNaFila(msg.key.remoteJid, { text: response.data });
   break;
 }
 
@@ -1320,7 +1332,7 @@ case 'análise': {
     mensagem += `\n🔍 *Insights*:\n${dados.insights.join('\n')}`;
 
     console.log("Mensagem formatada:", mensagem); // Log da mensagem final
-    await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+    adicionarNaFila(msg.key.remoteJid, { text: mensagem });
     
   } catch (error) {
     console.error("Erro na análise:", error);
@@ -1337,12 +1349,12 @@ case 'análise': {
           const clientes = response.data.clientes;
         
           if (clientes.length === 0) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "📭 Nenhum cliente registrado." });
+            adicionarNaFila(msg.key.remoteJid, { text: "📭 Nenhum cliente registrado." });
             return;
           }
         
           const listaClientes = clientes.map((cliente, index) => `${index + 1}. ${cliente}`).join('\n');
-          await sock.sendMessage(msg.key.remoteJid, { text: `📋 *Clientes Registrados*:\n\n${listaClientes}` });
+          adicionarNaFila(msg.key.remoteJid, { text: `📋 *Clientes Registrados*:\n\n${listaClientes}` });
           break;
         }
 
@@ -1388,7 +1400,7 @@ case 'análise': {
       
           mensagem += `💼 *Valor Total do Pedido*: R$ ${totalPedido.toFixed(2).replace(".", ",")}`;
       
-          await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+          adicionarNaFila(msg.key.remoteJid, { text: mensagem });
         } catch (error) {
           console.error("Erro ao consultar pedidos:", error);
           await sock.sendMessage(msg.key.remoteJid, { 
@@ -1423,7 +1435,7 @@ case 'análise': {
         case 'resumo': { // <--- Adicione chaves aqui
           console.log("Processando comando 'resumo'...");
           const resumoFinanceiro = await axios.get(`${WEB_APP_URL}?action=resumo`); // Renomeei para resumoFinanceiro
-          await sock.sendMessage(msg.key.remoteJid, { text: resumoFinanceiro.data });
+          adicionarNaFila(msg.key.remoteJid, { text: resumoFinanceiro.data });
           break;
         }
 
@@ -1432,7 +1444,7 @@ case 'análise': {
   const valorPoupanca = parametros.valor;
   // Alterado: remetente → remetenteNome
   await axios.get(`${WEB_APP_URL}?action=adicionarPoupanca&valor=${valorPoupanca}&remetente=${remetenteNome}`);
-  await sock.sendMessage(msg.key.remoteJid, { text: `✅ R$ ${valorPoupanca} transferidos para a poupança.` });
+  adicionarNaFila(msg.key.remoteJid, { text: `✅ R$ ${valorPoupanca} transferidos para a poupança.` });
   break;
 
  case 'entrada': {
@@ -1473,7 +1485,7 @@ case 'análise': {
   `${WEB_APP_URL}?action=saída&valor=${valorSaida}&categoria=${categoriaSaida}&remetente=${remetente}&texto=${encodeURIComponent(textoOriginal)}`
 );
     
-    await sock.sendMessage(msg.key.remoteJid, { text: responseSaida.data });
+adicionarNaFila(msg.key.remoteJid, { text: responseSaida.data });
   } catch (error) {
     console.error("Erro:", error);
     await sock.sendMessage(msg.key.remoteJid, { 
@@ -1486,7 +1498,7 @@ case 'análise': {
         case 'média':
           console.log("Processando comando 'média'...");
           const media = await axios.get(`${WEB_APP_URL}?action=mediaEntradas`);
-          await sock.sendMessage(msg.key.remoteJid, { text: media.data });
+          adicionarNaFila(msg.key.remoteJid, { text: media.data });
           break;
 
         case 'grafico':
@@ -1502,7 +1514,7 @@ case 'análise': {
           // Verifica se os dados estão no formato correto
           if (!dados.labels || !dados.datasets || !dados.titulo) {
             console.error("Dados do gráfico inválidos:", dados);
-            await sock.sendMessage(msg.key.remoteJid, { text: "❌ Erro: Dados do gráfico inválidos." });
+            adicionarNaFila(msg.key.remoteJid, { text: "❌ Erro: Dados do gráfico inválidos." });
             return;
           }
 
@@ -1512,7 +1524,7 @@ case 'análise': {
             await sock.sendMessage(msg.key.remoteJid, { image: image, caption: `📊 ${dados.titulo}` });
           } catch (error) {
             console.error("Erro ao gerar o gráfico:", error);
-            await sock.sendMessage(msg.key.remoteJid, { text: `❌ Erro ao gerar o gráfico: ${error.message}` });
+            adicionarNaFila(msg.key.remoteJid, { text: `❌ Erro ao gerar o gráfico: ${error.message}` });
           }
           break;
 
@@ -1520,7 +1532,7 @@ case 'análise': {
           console.log("Processando comando 'categoria adicionar'...");
           const nomeCategoria = parametros.nome;
           await axios.get(`${WEB_APP_URL}?action=adicionarCategoria&categoria=${nomeCategoria}`);
-          await sock.sendMessage(msg.key.remoteJid, { text: `📌 Categoria "${nomeCategoria}" adicionada com sucesso.` });
+          adicionarNaFila(msg.key.remoteJid, { text: `📌 Categoria "${nomeCategoria}" adicionada com sucesso.` });
           break;
 
         case 'listar categorias':
@@ -1528,10 +1540,10 @@ case 'análise': {
           const responseCategorias = await axios.get(`${WEB_APP_URL}?action=listarCategorias`);
           const categorias = responseCategorias.data.categorias;
           if (categorias.length === 0) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhuma categoria cadastrada." });
+            adicionarNaFila(msg.key.remoteJid, { text: "📌 Nenhuma categoria cadastrada." });
           } else {
             const listaCategorias = categorias.map((cat, index) => `${index + 1}. ${cat}`).join('\n');
-            await sock.sendMessage(msg.key.remoteJid, { text: `📌 Categorias cadastradas:\n${listaCategorias}` });
+            adicionarNaFila(msg.key.remoteJid, { text: `📌 Categorias cadastradas:\n${listaCategorias}` });
           }
           break;
 
@@ -1557,7 +1569,7 @@ case 'dívida adicionar': {
           const descricaoLembrete = parametros.descricao;
           const dataLembrete = parametros.data;
           await axios.get(`${WEB_APP_URL}?action=adicionarLembrete&descricao=${descricaoLembrete}&data=${dataLembrete}`);
-          await sock.sendMessage(msg.key.remoteJid, { text: `✅ Lembrete "${descricaoLembrete}" adicionado para ${dataLembrete}.` });
+          adicionarNaFila(msg.key.remoteJid, { text: `✅ Lembrete "${descricaoLembrete}" adicionado para ${dataLembrete}.` });
           break;
 
         case 'lembrete listar':
@@ -1565,10 +1577,10 @@ case 'dívida adicionar': {
           const responseLembretes = await axios.get(`${WEB_APP_URL}?action=listarLembretes`);
           const lembretes = responseLembretes.data.lembretes;
           if (lembretes.length === 0) {
-            await sock.sendMessage(msg.key.remoteJid, { text: "📌 Nenhum lembrete cadastrado." });
+            adicionarNaFila(msg.key.remoteJid, { text: "📌 Nenhum lembrete cadastrado." });
           } else {
             const listaLembretes = lembretes.map(l => `${l.id}. ${l.descricao} (${l.data})`).join('\n');
-            await sock.sendMessage(msg.key.remoteJid, { text: `📌 Lembretes:\n${listaLembretes}` });
+            adicionarNaFila(msg.key.remoteJid, { text: `📌 Lembretes:\n${listaLembretes}` });
           }
           break;
 
@@ -1577,20 +1589,20 @@ case 'dívida adicionar': {
           const categoria = parametros.categoria;
           const valor = parametros.valor;
           await axios.get(`${WEB_APP_URL}?action=definirOrcamento&categoria=${categoria}&valor=${valor}`);
-          await sock.sendMessage(msg.key.remoteJid, { text: `✅ Orçamento de R$ ${valor} definido para a categoria "${categoria}".` });
+          adicionarNaFila(msg.key.remoteJid, { text: `✅ Orçamento de R$ ${valor} definido para a categoria "${categoria}".` });
           break;
 
         case 'orçamento listar':
           console.log("Processando comando 'orçamento listar'...");
           const responseOrcamentos = await axios.get(`${WEB_APP_URL}?action=listarOrcamentos`);
-          await sock.sendMessage(msg.key.remoteJid, { text: responseOrcamentos.data });
+          adicionarNaFila(msg.key.remoteJid, { text: responseOrcamentos.data });
           break;
 
           case 'orçamento excluir': {
             console.log("Processando comando 'orçamento excluir'...");
             const numeroOrcamentoExcluir = parametros['número']; // Acessa o parâmetro corretamente
             const responseExcluirOrcamento = await axios.get(`${WEB_APP_URL}?action=excluirOrcamento&numero=${numeroOrcamentoExcluir}`);
-            await sock.sendMessage(msg.key.remoteJid, { text: responseExcluirOrcamento.data });
+            adicionarNaFila(msg.key.remoteJid, { text: responseExcluirOrcamento.data });
             break;
           }
 
@@ -1636,7 +1648,7 @@ case 'historico': {
 
     mensagem += "\n🔍 Use `excluir [ID]` para remover registros (ex: `excluir 5,7`)";
     
-    await sock.sendMessage(msg.key.remoteJid, { text: mensagem });
+    adicionarNaFila(msg.key.remoteJid, { text: mensagem });
     
   } catch (error) {
     console.error("Erro no histórico:", error);
@@ -1654,7 +1666,7 @@ case 'historico': {
     const numeroOrcamentoConsulta = parseInt(parametros['número'] || parametros.numero);
     
     if (isNaN(numeroOrcamentoConsulta)) {
-      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      adicionarNaFila(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
       break;
     }
 
@@ -1672,7 +1684,7 @@ case 'historico': {
 
     // Verifica se o número é válido
     if (numeroOrcamentoConsulta < 1 || numeroOrcamentoConsulta > orcamentos.length) {
-      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
+      adicionarNaFila(msg.key.remoteJid, { text: "❌ Número de orçamento inválido." });
       break;
     }
 
@@ -1693,7 +1705,7 @@ case 'historico': {
 📉 Porcentagem Utilizada: ${dadosResumo.porcentagemUtilizada}%
 📈 Valor Restante: R$ ${dadosResumo.valorRestante}`;
 
-    await sock.sendMessage(msg.key.remoteJid, { text: mensagemResumo });
+adicionarNaFila(msg.key.remoteJid, { text: mensagemResumo });
   } catch (error) {
     console.error("Erro ao processar orçamento:", error);
     await sock.sendMessage(msg.key.remoteJid, { 
@@ -1707,7 +1719,7 @@ case 'historico': {
           console.log("Processando comando 'excluir'...");
           const numeros = Object.values(parametros).join(",");
           const responseExcluir = await axios.get(`${WEB_APP_URL}?action=excluirTransacao&parametro=${encodeURIComponent(numeros)}`);
-          await sock.sendMessage(msg.key.remoteJid, { text: responseExcluir.data });
+          adicionarNaFila(msg.key.remoteJid, { text: responseExcluir.data });
           break;
 
         case 'agendar': {
@@ -1718,7 +1730,7 @@ case 'historico': {
           const hora = parametros.hora;
           const telefone = parametros.telefone;
           const response = await axios.get(`${WEB_APP_URL}?action=agendar&cliente=${cliente}&servico=${servico}&data=${data}&hora=${hora}&telefone=${telefone}`);
-          await sock.sendMessage(msg.key.remoteJid, { text: response.data });
+          adicionarNaFila(msg.key.remoteJid, { text: response.data });
           break;
         }
 
@@ -1740,7 +1752,7 @@ case 'historico': {
           }
         } else {
           const respostaConversacao = await gerarRespostaConversacao(texto);
-          await sock.sendMessage(msg.key.remoteJid, { text: respostaConversacao });
+          adicionarNaFila(msg.key.remoteJid, { text: respostaConversacao });
         }
       } catch (error) {
         console.error("Erro no processamento:", error);
@@ -1750,6 +1762,12 @@ case 'historico': {
       }
   } catch (error) {
     console.error("Erro geral:", error);
+    
+    if (error.data === 429) {
+      console.log("Aguardando 60 segundos por rate limit...");
+      await delay(60000);
+      iniciarConexaoWhatsApp();
+    }
   }
 });
 }

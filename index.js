@@ -179,10 +179,10 @@ function delay(ms) {
   switch (estado.passo) {
     case 1: // Coletar nome
     if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) {
-      adicionarNaFila(clienteId, { 
+        await sock.sendMessage(clienteId, { 
             text: "❌ Nome inválido. Digite seu nome completo (ex: João Silva):" 
         });
-        await delay(1500);
+        await delay(1500); // Aguarda 1,5 segundo antes de permitir nova tentativa
         return;
     }
     estado.dados.nome = mensagem;
@@ -1064,24 +1064,58 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     try {
-      const msg = messages[0];
-      if (!msg?.message || !msg.key?.remoteJid) return;
+        // 1. Declare 'msg' no início do bloco
+        const msg = messages[0];
+        if (!msg?.message || !msg.key?.remoteJid) return;
 
-      if (msg.key.remoteJid.endsWith('@g.us')) {
-        const metadata = await sock.groupMetadata(msg.key.remoteJid);
-        const isAdmin = metadata.participants.find(p => p.id === sock.user.id)?.admin;
-        
-        if (!isAdmin) {
-          return console.log("Bot não é admin no grupo");
-        }
-        
-        // Limitar para 1 mensagem a cada 3 segundos por grupo
-        await delay(3000); 
+        const clienteId = msg.key.remoteJid;
+
+        // 2. Verifique se a mensagem é uma resposta automática
+        if (msg.message.conversation?.startsWith("❌")) {
+          console.log("Mensagem ignorada (resposta automática do bot).");
+          return;
       }
 
-      
-      const clienteId = msg.key.remoteJid;
       const texto = msg.message.conversation.trim().toLowerCase();
+
+
+
+
+ // 1. Verificar se é um grupo
+ const isGrupo = clienteId.endsWith('@g.us');
+
+ // 2. Se for grupo, verificar se está na lista permitida
+ if (isGrupo && !GRUPOS_PERMITIDOS.includes(clienteId)) {
+  console.log(`Mensagem bloqueada de grupo não autorizado: ${clienteId}`);
+  return;
+}
+
+ // 3. Se for grupo permitido, verificar admin
+ if (isGrupo) {
+   try {
+     const metadata = await sock.groupMetadata(clienteId);
+     const isAdmin = metadata.participants.find(p => p.id === sock.user.id)?.admin;
+     
+     if (!isAdmin) {
+       console.log(`Bot não é admin no grupo ${clienteId}`);
+       return;
+     }
+     
+     // Rate limit para grupos
+     await delay(2000);
+   } catch (error) {
+     console.error("Erro ao verificar admin:", error);
+     return;
+   }
+ }
+
+ // 4. Verificar permissões do usuário
+remetenteId = msg.key.participant || clienteId;
+ if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
+   console.log(`Usuário não autorizado: ${remetenteId}`);
+   return;
+ }
+
 
 
         // Primeiro, verifica se o usuário está em processo de agendamento
@@ -1153,7 +1187,6 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   }
 
   // Depois verifica usuário autorizado (mesmo em grupos)
-const remetenteId = msg.key.participant || msg.key.remoteJid;
 if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
   console.log("Usuário não autorizado:", remetenteId);
   return;

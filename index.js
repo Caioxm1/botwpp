@@ -18,6 +18,40 @@ const app = express();
 const timeoutsAgendamento = {};
 const estadosAgendamento = {};
 
+const filaMensagens = [];
+let enviando = false;
+
+// Modificar a função processarFila para:
+async function processarFila() {
+  if (enviando || filaMensagens.length === 0) return;
+  
+  enviando = true;
+  const { destino, mensagem } = filaMensagens.shift();
+  
+  try {
+    if (sock && sock.connection === 'open') {
+      await sock.sendMessage(destino, mensagem);
+      await delay(1500);
+    }
+  } catch (error) {
+    console.error("Erro ao enviar mensagem:", error);
+    // Reconexão automática
+    if (error.message.includes('Connection closed')) {
+      await iniciarConexaoWhatsApp();
+    }
+  } finally {
+    enviando = false;
+    processarFila();
+  }
+}
+
+function adicionarNaFila(destino, mensagem) {
+  if (sock && sock.connection === 'open') {
+    filaMensagens.push({ destino, mensagem });
+    processarFila();
+  }
+}
+
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -54,10 +88,10 @@ async function enviarListaServicos(clienteId) {
     });
     lista += "\nDigite os números dos serviços separados por vírgula:";
 
-    await sock.sendMessage(clienteId, { text: lista });
+    adicionarNaFila(clienteId, { text: lista });
   } catch (error) {
     console.error("Erro ao listar serviços:", error);
-    await sock.sendMessage(clienteId, { 
+    adicionarNaFila(clienteId, { 
       text: "❌ Erro ao carregar serviços. Tente novamente mais tarde." 
     });
     delete estadosAgendamento[clienteId]; // Reseta o estado
@@ -117,11 +151,11 @@ async function finalizarAgendamento(clienteId) {
     
 Você receberá um lembrete 24h antes. Obrigado!`;
 
-    await sock.sendMessage(clienteId, { text: mensagem });
+adicionarNaFila(clienteId, { text: mensagem });
     
   } catch (error) {
     console.error("Erro finalização:", error);
-    await sock.sendMessage(clienteId, { text: "❌ Erro ao finalizar agendamento. Tente novamente." });
+    adicionarNaFila(clienteId, { text: "❌ Erro ao finalizar agendamento. Tente novamente." });
   } finally {
     delete estadosAgendamento[clienteId];
   }
@@ -132,7 +166,7 @@ Você receberá um lembrete 24h antes. Obrigado!`;
 
   if (!estadosAgendamento[clienteId]) {
       estadosAgendamento[clienteId] = { passo: 1, dados: {} };
-      await sock.sendMessage(clienteId, { text: "Olá! Qual seu *nome completo*?" });
+      adicionarNaFila(clienteId, { text: "Olá! Qual seu *nome completo*?" });
       return;
   }
 
@@ -145,7 +179,7 @@ function delay(ms) {
   switch (estado.passo) {
     case 1: // Coletar nome
     if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) {
-        await sock.sendMessage(clienteId, { 
+      adicionarNaFila(clienteId, { 
             text: "❌ Nome inválido. Digite seu nome completo (ex: João Silva):" 
         });
         await delay(1500);
@@ -168,14 +202,14 @@ function delay(ms) {
         estado.passo = 3;
         estado.tentativasServico = 0; // Reinicia o contador
         
-        await sock.sendMessage(clienteId, { text: "📅 Digite a data do agendamento (DD/MM/AAAA):" });
+        adicionarNaFila(clienteId, { text: "📅 Digite a data do agendamento (DD/MM/AAAA):" });
     } catch (error) {
         if (estado.tentativasServico >= 3) {
             delete estadosAgendamento[clienteId];
-            await sock.sendMessage(clienteId, { text: "❌ Número máximo de tentativas excedido. Agendamento cancelado." });
+            adicionarNaFila(clienteId, { text: "❌ Número máximo de tentativas excedido. Agendamento cancelado." });
         } else {
             estado.tentativasServico = (estado.tentativasServico || 0) + 1;
-            await sock.sendMessage(clienteId, { text: "❌ Seleção inválida. Digite números válidos separados por vírgula:" });
+            adicionarNaFila(clienteId, { text: "❌ Seleção inválida. Digite números válidos separados por vírgula:" });
             await delay(1500); // Aguarda 1,5 segundo antes de permitir nova tentativa
         }
     }
@@ -190,14 +224,14 @@ function delay(ms) {
           const response = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${mensagem}`);
           const horarios = response.data.horarios;
           
-          await sock.sendMessage(clienteId, { 
+          adicionarNaFila(clienteId, { 
             text: `Horários disponíveis para ${mensagem}:\n${horarios.join('\n') || 'Todos horários livres'}\n\nDigite o horário desejado (HH:MM):`
           });
         } else {
-          await sock.sendMessage(clienteId, { text: "❌ Data lotada. Escolha outra (DD/MM/AAAA):" });
+          adicionarNaFila(clienteId, { text: "❌ Data lotada. Escolha outra (DD/MM/AAAA):" });
         }
       } else {
-        await sock.sendMessage(clienteId, { text: "❌ Formato inválido. Use DD/MM/AAAA:" });
+        adicionarNaFila(clienteId, { text: "❌ Formato inválido. Use DD/MM/AAAA:" });
       }
       break;
 
@@ -207,7 +241,7 @@ function delay(ms) {
         estado.dados.telefone = clienteId;
         await finalizarAgendamento(clienteId);
       } else {
-        await sock.sendMessage(clienteId, { text: "❌ Formato inválido. Use HH:MM:" });
+        adicionarNaFila(clienteId, { text: "❌ Formato inválido. Use HH:MM:" });
       }
       break;
   }
@@ -241,7 +275,7 @@ app.post('/api/send-message', async (req, res) => {
     }
 
     const jid = `${req.body.number}@s.whatsapp.net`;
-    await sock.sendMessage(jid, { text: req.body.message });
+    adicionarNaFila(jid, { text: req.body.message });
     
     res.json({ success: true });
   } catch (error) {
@@ -1030,6 +1064,9 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     try {
+      const msg = messages[0];
+      if (!msg?.message || !msg.key?.remoteJid) return;
+
       if (msg.key.remoteJid.endsWith('@g.us')) {
         const metadata = await sock.groupMetadata(msg.key.remoteJid);
         const isAdmin = metadata.participants.find(p => p.id === sock.user.id)?.admin;
@@ -1042,8 +1079,6 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
         await delay(3000); 
       }
 
-      const msg = messages[0];
-      if (!msg?.message || !msg.key?.remoteJid) return;
       
       const clienteId = msg.key.remoteJid;
       const texto = msg.message.conversation.trim().toLowerCase();
@@ -1100,7 +1135,7 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   // Comando !id (funciona em qualquer grupo)
   if (texto.toLowerCase() === "!id") {
     const grupoId = msg.key.remoteJid;
-    await sock.sendMessage(grupoId, { 
+    adicionarNaFila(grupoId, { 
       text: `🔑 ID deste grupo: *${grupoId}*` 
     });
     return;
@@ -1148,7 +1183,7 @@ if (!USUARIOS_AUTORIZADOS.includes(remetenteId)) {
 // Comando para obter o ID do grupo
 if (texto.toLowerCase() === "!id") {
   const grupoId = msg.key.remoteJid;
-  await sock.sendMessage(grupoId, { 
+  adicionarNaFila(grupoId, { 
     text: `📌 ID deste grupo: *${grupoId}*` 
   });
   return;
@@ -1190,7 +1225,7 @@ case 'pdf': {
     const response = await axios.get(`${WEB_APP_URL}?action=gerarPDF`);
     const pdfBuffer = Buffer.from(response.data, 'base64');
 
-    await sock.sendMessage(msg.key.remoteJid, {
+    adicionarNaFila(msg.key.remoteJid, {
       document: pdfBuffer,
       fileName: `Relatorio_Financeiro_${new Date().toLocaleDateString()}.pdf`,
       mimetype: 'application/pdf',
@@ -1198,7 +1233,7 @@ case 'pdf': {
     });
   } catch (error) {
     console.error("Erro PDF:", error);
-    await sock.sendMessage(msg.key.remoteJid, {
+    adicionarNaFila(msg.key.remoteJid, {
       text: "❌ Erro ao gerar PDF. Verifique o console para detalhes."
     });
   }
@@ -1216,7 +1251,7 @@ case 'dívida pagar': {
     `${WEB_APP_URL}?action=marcarDividaPaga&id=${numero}&semSaida=${semSaida}&remetente=${encodeURIComponent(remetente)}`
   );
 
-  await sock.sendMessage(msg.key.remoteJid, { 
+  adicionarNaFila(msg.key.remoteJid, { 
     text: response.data
   });
   break;
@@ -1265,7 +1300,7 @@ case 'dívida listar': {
     const dividas = response.data.dividas;
 
     if (dividas.length === 0) {
-      await sock.sendMessage(msg.key.remoteJid, { 
+      adicionarNaFila(msg.key.remoteJid, { 
         text: "📭 Nenhuma dívida encontrada com esses filtros." 
       });
       break;
@@ -1295,7 +1330,7 @@ case 'dívida listar': {
     
   } catch (error) {
     console.error("Erro detalhado:", error);
-    await sock.sendMessage(msg.key.remoteJid, { 
+    adicionarNaFila(msg.key.remoteJid, { 
       text: "❌ Erro ao listar dívidas. Tente novamente." 
     });
   }
@@ -1343,7 +1378,7 @@ case 'análise': {
     
   } catch (error) {
     console.error("Erro na análise:", error);
-    await sock.sendMessage(msg.key.remoteJid, { 
+    adicionarNaFila(msg.key.remoteJid, { 
       text: `❌ Falha na análise: ${error.message}`
     });
   }
@@ -1382,7 +1417,7 @@ case 'análise': {
           const pedidos = response.data;
       
           if (!pedidos || pedidos.length === 0) {
-            await sock.sendMessage(msg.key.remoteJid, { 
+            adicionarNaFila(msg.key.remoteJid, { 
               text: `📭 Nenhum pedido encontrado para *${cliente}* em *${dataFormatada}*.` 
             });
             return;
@@ -1410,7 +1445,7 @@ case 'análise': {
           adicionarNaFila(msg.key.remoteJid, { text: mensagem });
         } catch (error) {
           console.error("Erro ao consultar pedidos:", error);
-          await sock.sendMessage(msg.key.remoteJid, { 
+          adicionarNaFila(msg.key.remoteJid, { 
             text: "❌ Erro ao buscar pedidos. Verifique o formato da data (DD/MM/AAAA)." 
           });
         }
@@ -1428,7 +1463,7 @@ case 'análise': {
             `${WEB_APP_URL}?action=adicionarPedido&cliente=${cliente}&produto=${produto}&quantidade=${quantidade}&precoUnitario=${precoUnitario}&total=${total}`
           );
           
-          await sock.sendMessage(msg.key.remoteJid, { 
+          adicionarNaFila(msg.key.remoteJid, { 
             text: `✅ Pedido registrado para ${cliente}:\n\n` +
                   `📦 Produto: ${produto}\n` +
                   `📦 Quantidade: ${quantidade}\n` +
@@ -1462,7 +1497,7 @@ case 'análise': {
 
   await axios.get(`${WEB_APP_URL}?action=entrada&valor=${valorEntrada}&remetente=${remetenteNome}&categoria=${encodeURIComponent(categoriaEntrada)}&descricao=${encodeURIComponent(descricaoEntrada)}`);
 
-  await sock.sendMessage(msg.key.remoteJid, { 
+  adicionarNaFila(msg.key.remoteJid, { 
     text: `✅ Entrada registrada!\n\n` +
           `💵 Valor: R$ ${valorEntrada}\n` +
           `🏷️ Categoria: ${categoriaEntrada}\n` +
@@ -1495,7 +1530,7 @@ case 'análise': {
 adicionarNaFila(msg.key.remoteJid, { text: responseSaida.data });
   } catch (error) {
     console.error("Erro:", error);
-    await sock.sendMessage(msg.key.remoteJid, { 
+    adicionarNaFila(msg.key.remoteJid, { 
       text: `❌ Erro: ${error.response?.data || error.message}`
     });
   }
@@ -1528,7 +1563,7 @@ adicionarNaFila(msg.key.remoteJid, { text: responseSaida.data });
           // Gera o gráfico
           try {
             const image = await gerarGrafico(tipoGrafico, dados);
-            await sock.sendMessage(msg.key.remoteJid, { image: image, caption: `📊 ${dados.titulo}` });
+            adicionarNaFila(msg.key.remoteJid, { image: image, caption: `📊 ${dados.titulo}` });
           } catch (error) {
             console.error("Erro ao gerar o gráfico:", error);
             adicionarNaFila(msg.key.remoteJid, { text: `❌ Erro ao gerar o gráfico: ${error.message}` });
@@ -1563,7 +1598,7 @@ case 'dívida adicionar': {
 
   await axios.get(`${WEB_APP_URL}?action=adicionarDivida&valor=${valorDivida}&credor=${credor}&dataVencimento=${dataVencimento}&categoria=${encodeURIComponent(categoria)}`);
 
-  await sock.sendMessage(msg.key.remoteJid, { 
+  adicionarNaFila(msg.key.remoteJid, { 
     text: `✅ Dívida de R$ ${valorDivida} adicionada para ${credor}\n` +
           `📅 Vencimento: ${dataVencimento}\n` +
           `🏷️ Categoria: ${categoria}` 
@@ -1638,7 +1673,7 @@ case 'historico': {
     const historico = response.data.historico;
 
     if (historico.length === 0) {
-      await sock.sendMessage(msg.key.remoteJid, { 
+      adicionarNaFila(msg.key.remoteJid, { 
         text: "📭 Nenhuma transação encontrada com esses filtros." 
       });
       return;
@@ -1659,7 +1694,7 @@ case 'historico': {
     
   } catch (error) {
     console.error("Erro no histórico:", error);
-    await sock.sendMessage(msg.key.remoteJid, { 
+    adicionarNaFila(msg.key.remoteJid, { 
       text: "❌ Erro ao buscar histórico. Verifique os filtros e tente novamente." 
     });
   }
@@ -1715,7 +1750,7 @@ case 'historico': {
 adicionarNaFila(msg.key.remoteJid, { text: mensagemResumo });
   } catch (error) {
     console.error("Erro ao processar orçamento:", error);
-    await sock.sendMessage(msg.key.remoteJid, { 
+    adicionarNaFila(msg.key.remoteJid, { 
       text: "❌ Erro ao consultar orçamento. Verifique o número e tente novamente." 
     });
   }
@@ -1745,14 +1780,14 @@ adicionarNaFila(msg.key.remoteJid, { text: mensagemResumo });
           const data = parametros.data;
           const response = await axios.get(`${WEB_APP_URL}?action=verificarHorarios&data=${data}`);
           const horarios = response.data.horarios;
-          await sock.sendMessage(msg.key.remoteJid, { 
+          adicionarNaFila(msg.key.remoteJid, { 
             text: `📅 Horários ocupados em ${data}:\n${horarios.join('\n') || 'Todos horários livres!'}` 
           });
           break;
         }
 
           default:
-                await sock.sendMessage(msg.key.remoteJid, { 
+            adicionarNaFila(msg.key.remoteJid, { 
                   text: "❌ Comando não reconhecido. Use 'ajuda'." 
                 });
             }
@@ -1763,7 +1798,7 @@ adicionarNaFila(msg.key.remoteJid, { text: mensagemResumo });
         }
       } catch (error) {
         console.error("Erro no processamento:", error);
-        await sock.sendMessage(msg.key.remoteJid, { 
+        adicionarNaFila(msg.key.remoteJid, { 
           text: "❌ Ocorreu um erro interno. Tente novamente." 
         });
       }

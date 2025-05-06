@@ -1062,8 +1062,19 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
       wss.clients.forEach(client => client.send(JSON.stringify({ qr: qrLink })));
     }
     
-    if (connection === 'open') console.log('Bot conectado!');
+    if (connection === 'open') {
+      console.log('Bot conectado!');
+      console.log("Meu ID:", sock.user?.id); // Adicionado aqui
+    }
     if (connection === 'close') setTimeout(iniciarConexaoWhatsApp, 5000);
+  });
+
+  // Novo evento para lidar com erros de criptografia
+  sock.ev.on('messages.update', async (context) => {
+    if (context?.error?.message?.includes('SenderKeyRecord')) {
+        console.log("⚠️ Erro de criptografia - Reiniciando sessão...");
+        await iniciarConexaoWhatsApp(); // Reconecta
+    }
   });
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
@@ -1097,23 +1108,16 @@ const { state, saveCreds } = await useMultiFileAuthState('auth_info');
  // 3. Se for grupo permitido, verificar admin
  if (isGrupo) {
    try {
-     const metadata = await sock.groupMetadata(clienteId);
-     const isAdmin = metadata.participants.find(p => p.id === sock.user.id)?.admin;
-     
-     if (!isAdmin) {
-       console.log(`Bot não é admin no grupo ${clienteId}`);
-            
-            // Envia alerta para o usuário
-            const mensagemAdmin = `⚠️ *Sou necessário como admin neste grupo!*
-            
-1. Vá nas configurações do grupo
-2. Toque em "Participantes"
-3. Selecione meu número (@${sock.user.id.split(':')[0]})
-4. Escolha "Tornar administrador"`;
+    const metadata = await sock.groupMetadata(clienteId, true); // <-- 'true' força atualização
+    // Novo método de verificação
+    const isAdmin = metadata.participants.some(p => 
+        p.id.replace(/:\d+/, '') === sock.user?.id.replace(/:\d+/, '') && p.admin
+    );
 
-            await sock.sendMessage(clienteId, { text: mensagemAdmin });
-            return;
-        }
+    if (!isAdmin) {
+        console.log("⚠️ Bot não é admin (ID comparado):", sock.user?.id);
+        return;
+    }
     } catch (error) {
         console.error("Erro ao verificar admin:", error);
         return;

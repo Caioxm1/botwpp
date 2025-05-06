@@ -30,7 +30,7 @@ async function iniciarAgendamento(clienteId, mensagem) {
   timeoutsAgendamento[clienteId] = setTimeout(() => {
       delete estadosAgendamento[clienteId];
       sock.sendMessage(clienteId, { text: "⏰ Tempo esgotado. Agendamento cancelado." });
-  }, 600000); // 5 minutos de timeout
+  }, 300000); // 5 minutos de timeout
 
 app.use(express.json());
 
@@ -78,11 +78,11 @@ async function processarServicosSelecao(mensagem) {
       if (numeros.length === 0) {
           throw new Error("Nenhuma seleção válida");
       }
-      return numeros;
-  } catch (error) {
-      console.error("Erro na seleção de serviços:", error.message);
-      throw error;
-  }
+      return [...new Set(numeros)]; // Remove duplicatas
+    } catch (error) {
+        console.error("Erro na seleção de serviços:", error.message);
+        throw error;
+    }
 }
 
 async function verificarDisponibilidadeData(data) {
@@ -144,11 +144,11 @@ function delay(ms) {
   const estado = estadosAgendamento[clienteId];
   switch (estado.passo) {
     case 1: // Coletar nome
-    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) { // Valida nomes com 3+ caracteres e espaços
+    if (!/^[a-zA-ZÀ-ÿ\s]{3,}$/.test(mensagem)) {
         await sock.sendMessage(clienteId, { 
             text: "❌ Nome inválido. Digite seu nome completo (ex: João Silva):" 
         });
-        await delay(1500); // Aguarda 1,5 segundo antes de permitir nova tentativa
+        await delay(1500);
         return;
     }
     estado.dados.nome = mensagem;
@@ -156,23 +156,30 @@ function delay(ms) {
     await enviarListaServicos(clienteId); // Avança para seleção de serviços
     break;
 
-      case 2: // Seleção de serviços
-      try {
-          const servicosSelecionados = await processarServicosSelecao(mensagem);
-          estado.dados.servico = servicosSelecionados.join(",");
-          estado.passo = 3;
-          estado.tentativasServico = 0; // Reset do contador
-          await sock.sendMessage(clienteId, { text: "📅 Digite a data do agendamento (DD/MM/AAAA):" });
-      } catch (error) {
-          if (estado.tentativasServico >= 3) {
-              delete estadosAgendamento[clienteId];
-              await sock.sendMessage(clienteId, { text: "❌ Número máximo de tentativas excedido. Agendamento cancelado." });
-          } else {
-              estado.tentativasServico = (estado.tentativasServico || 0) + 1;
-              await sock.sendMessage(clienteId, { text: "❌ Seleção inválida. Digite números válidos separados por vírgula:" });
-          }
-      }
-      break;
+    case 2: // Seleção de serviços
+    try {
+        const response = await axios.get(`${WEB_APP_URL}?action=listarServicos`);
+        if (!response.data?.servicos?.length) {
+            throw new Error("Falha ao carregar serviços");
+        }
+        
+        const servicosSelecionados = await processarServicosSelecao(mensagem, response.data.servicos.length);
+        estado.dados.servico = servicosSelecionados.join(",");
+        estado.passo = 3;
+        estado.tentativasServico = 0; // Reinicia o contador
+        
+        await sock.sendMessage(clienteId, { text: "📅 Digite a data do agendamento (DD/MM/AAAA):" });
+    } catch (error) {
+        if (estado.tentativasServico >= 3) {
+            delete estadosAgendamento[clienteId];
+            await sock.sendMessage(clienteId, { text: "❌ Número máximo de tentativas excedido. Agendamento cancelado." });
+        } else {
+            estado.tentativasServico = (estado.tentativasServico || 0) + 1;
+            await sock.sendMessage(clienteId, { text: "❌ Seleção inválida. Digite números válidos separados por vírgula:" });
+            await delay(1500); // Aguarda 1,5 segundo antes de permitir nova tentativa
+        }
+    }
+    break;
 
     case 3:
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(mensagem)) {
